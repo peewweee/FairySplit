@@ -10,7 +10,8 @@
 .screen-card,
 .panel,
 .room-banner,
-.room-drawer {
+.room-drawer,
+.room-card {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(108, 79, 50, 0.16);
@@ -22,7 +23,8 @@
 
 .hero-panel::after,
 .quick-focus-card::after,
-.correction-card::after {
+.correction-card::after,
+.room-card::after {
   content: '';
   position: absolute;
   width: 220px;
@@ -52,7 +54,8 @@
 .quick-focus-card,
 .correction-card,
 .room-banner,
-.panel {
+.panel,
+.room-card {
   padding: 24px;
 }
 
@@ -88,10 +91,12 @@
 .room-banner h2,
 .editor-card h3,
 .dashboard-brand h2,
-.drawer-header h3 {
+.drawer-header h3,
+.room-card h2,
+.bill-card h4 {
   margin: 0;
   color: #253126;
-  font-family: Cambria, Georgia, serif;
+  font-family: 'Aptos Display', 'Segoe UI Semibold', sans-serif;
 }
 
 .hero-copy h1 {
@@ -339,6 +344,103 @@
   transform: translateX(0);
 }
 
+.room-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 238, 176, 0.24), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(176, 223, 201, 0.22), transparent 28%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.95), rgba(248, 243, 233, 0.94));
+}
+
+.room-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.room-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.room-title-row h2 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+}
+
+.room-code-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: rgba(246, 239, 222, 0.96);
+  border: 1px solid rgba(108, 79, 50, 0.12);
+  color: #6a5b3a;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.accordion-block {
+  border-top: 1px solid rgba(108, 79, 50, 0.12);
+  padding-top: 16px;
+}
+
+.accordion-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion-toggle:hover .accordion-chevron {
+  background: rgba(240, 232, 214, 1);
+}
+
+.accordion-chevron {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(240, 232, 214, 0.88);
+  color: #244235;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.accordion-chevron::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.accordion-chevron.open {
+  transform: rotate(180deg);
+}
+
+.correction-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 18px;
+}
+
 .drawer-header {
   display: flex;
   justify-content: space-between;
@@ -446,9 +548,10 @@
 }
 
 .quick-toggle-button strong {
-  font-family: Cambria, Georgia, serif;
+  font-family: 'Aptos Display', 'Segoe UI Semibold', sans-serif;
   font-size: clamp(2rem, 4.5vw, 3rem);
   line-height: 1;
+  letter-spacing: -0.04em;
 }
 
 .quick-toggle-bottom {
@@ -524,7 +627,6 @@
 
 .correction-layout {
   grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
-  margin-top: 18px;
 }
 
 .calendar-header {
@@ -606,13 +708,6 @@
   font-weight: 800;
 }
 
-.calendar-day-caption {
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
 .editor-card,
 .editor-empty {
   display: flex;
@@ -658,6 +753,263 @@
 
 .dashboard-columns {
   grid-template-columns: minmax(320px, 0.92fr) minmax(380px, 1.08fr);
+}
+
+.bills-panel {
+  background:
+    radial-gradient(circle at top right, rgba(188, 226, 210, 0.18), transparent 22%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.95), rgba(248, 244, 236, 0.94));
+}
+
+.bill-scroll-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bill-scroll-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 320px);
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.bill-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+.bill-card {
+  scroll-snap-align: start;
+  border-radius: 24px;
+  border: 1px solid rgba(63, 90, 74, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 18px 32px rgba(68, 59, 46, 0.08);
+}
+
+.bill-card.featured {
+  border-color: rgba(36, 91, 72, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(214, 244, 225, 0.7), transparent 34%),
+    rgba(255, 255, 255, 0.9);
+}
+
+.bill-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.bill-card h4 {
+  font-size: 1.22rem;
+  margin-top: 2px;
+}
+
+.bill-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(240, 232, 214, 0.92);
+  color: #6a5b3a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.bill-card-values {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid rgba(108, 79, 50, 0.1);
+}
+
+.bill-card-values span,
+.bill-card-meta {
+  color: #596458;
+}
+
+.bill-card-values strong {
+  color: #253126;
+  font-size: 1.2rem;
+}
+
+.bill-share-actions,
+.bill-share-cta,
+.bill-breakdown-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bill-share-actions,
+.bill-share-cta {
+  justify-content: flex-end;
+}
+
+.bill-link-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #245b48;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bill-join-note {
+  color: #596458;
+  font-size: 0.9rem;
+}
+
+.bill-join-button {
+  padding: 9px 14px;
+  border-radius: 12px;
+}
+
+.bill-card-note {
+  color: #32433a;
+  font-weight: 700;
+}
+
+.bill-card-inline {
+  font-size: 1rem;
+  text-align: right;
+}
+
+.bill-card-meta {
+  font-size: 0.92rem;
+}
+
+.bill-card-toggle {
+  width: 100%;
+  margin-top: auto;
+  padding: 12px 0 0;
+  border: none;
+  border-top: 1px solid rgba(108, 79, 50, 0.1);
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  color: #32433a;
+  font-weight: 700;
+}
+
+.bill-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bill-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid rgba(108, 79, 50, 0.1);
+}
+
+.bill-breakdown-row.muted {
+  opacity: 0.66;
+}
+
+.bill-breakdown-actions {
+  justify-content: flex-end;
+}
+
+.bill-card-close {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(240, 232, 214, 0.88);
+  color: #244235;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.compact-form {
+  gap: 12px;
+}
+
+.add-bill-card {
+  min-height: 300px;
+  justify-content: center;
+  border-style: dashed;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.95), rgba(248, 244, 236, 0.92));
+}
+
+.add-bill-card.open {
+  justify-content: flex-start;
+  border-style: solid;
+}
+
+.add-bill-button {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  color: #32433a;
+  font-weight: 700;
+}
+
+.add-bill-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(220, 238, 227, 0.84);
+  color: #245b48;
+  font-size: 2rem;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px rgba(36, 91, 72, 0.14);
+}
+
+.scroll-indicator {
+  display: flex;
+  justify-content: center;
+}
+
+.scroll-indicator-track {
+  position: relative;
+  width: 112px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(108, 79, 50, 0.14);
+  overflow: hidden;
+}
+
+.scroll-indicator-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #245b48, #3f7b60);
+  transition: transform 0.2s ease;
 }
 
 .summary-grid {
@@ -764,8 +1116,8 @@
 }
 
 @media (max-width: 1040px) {
-  .quick-focus-card,
   .correction-layout,
+  .quick-focus-card,
   .dashboard-columns,
   .quick-action-status,
   .triple-grid,
@@ -779,6 +1131,8 @@
   .compact-banner,
   .panel-header.with-action,
   .calendar-header,
+  .room-card-header,
+  .bill-breakdown-row,
   .history-row,
   .amount-row,
   .drawer-header {
@@ -807,7 +1161,8 @@
   .correction-card,
   .room-banner,
   .panel,
-  .room-drawer {
+  .room-drawer,
+  .room-card {
     padding: 20px;
     border-radius: 24px;
   }
@@ -821,7 +1176,8 @@
   .two-column-form,
   .inline-actions,
   .toggle-row,
-  .hero-utility {
+  .hero-utility,
+  .room-title-row {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
@@ -829,6 +1185,17 @@
   .quick-toggle-button {
     min-height: 200px;
     padding: 18px;
+  }
+
+  .accordion-toggle {
+    align-items: flex-start;
+  }
+
+  .bill-share-actions,
+  .bill-share-cta,
+  .bill-breakdown-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .calendar-day {
