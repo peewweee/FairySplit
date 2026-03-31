@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import './App.css'
 
 const MS_IN_SECOND = 1000
@@ -393,7 +393,7 @@ function subtractSelectedDatesFromSession(session, selectedRemovalDateKeys) {
 }
 
 function App() {
-  const [step, setStep] = useState('identity')
+  const [step, setStep] = useState('room')
   const [draftName, setDraftName] = useState('')
   const [userName, setUserName] = useState('')
   const [themeMode, setThemeMode] = useState(() => {
@@ -588,21 +588,13 @@ function App() {
       ? `Last stay ${latestActivityDuration}`
       : 'Ready for your next log'
 
-  function handleNameSubmit(event) {
+  function handleRoomSubmit(event) {
     event.preventDefault()
-
     const trimmedName = draftName.trim()
 
     if (!trimmedName) {
       return
     }
-
-    setUserName(trimmedName)
-    setStep('room')
-  }
-
-  function handleRoomSubmit(event) {
-    event.preventDefault()
 
     if (roomAction === 'create' && !roomName.trim()) {
       return
@@ -612,6 +604,7 @@ function App() {
       return
     }
 
+    setUserName(trimmedName)
     setStep('dashboard')
   }
 
@@ -877,6 +870,7 @@ function App() {
     setSelectedCorrectionDates([])
     setSelectedRemovalDates([])
     setCorrectionDetailsByDate({})
+    setShowCorrectionCalendar(false)
   }
 
   async function handleCopyRoomCode() {
@@ -1066,18 +1060,6 @@ function App() {
             <h1>FairySplit</h1>
             <p className="hero-text">Split dorm bills by actual stay time.</p>
           </div>
-
-          <div className="step-strip" aria-label="Project flow">
-            <span className={step === 'identity' ? 'step-chip active' : 'step-chip'}>
-              Name
-            </span>
-            <span className={step === 'room' ? 'step-chip active' : 'step-chip'}>
-              Room
-            </span>
-            <span className={step === 'dashboard' ? 'step-chip active' : 'step-chip'}>
-              Dashboard
-            </span>
-          </div>
         </section>
       ) : (
         <>
@@ -1109,18 +1091,21 @@ function App() {
           ) : null}
 
           <aside className={showRoomMenu ? 'room-drawer open' : 'room-drawer'}>
+            <button
+              className="drawer-icon-button"
+              type="button"
+              aria-label="Close room menu"
+              onClick={() => setShowRoomMenu(false)}
+            >
+              <span></span>
+              <span></span>
+            </button>
+
             <div className="drawer-header">
               <div>
                 <p className="section-label">Rooms</p>
                 <h3>Choose a room</h3>
               </div>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setShowRoomMenu(false)}
-              >
-                Close
-              </button>
             </div>
 
             <div className="drawer-room-list">
@@ -1145,70 +1130,48 @@ function App() {
               ))}
             </div>
 
-            <div className="drawer-toggle-row">
-              <div>
-                <p className="section-label">Theme</p>
-                <h3>Dark mode</h3>
-              </div>
+            <div className="drawer-bottom">
               <button
-                className={themeMode === 'dark' ? 'theme-switch active' : 'theme-switch'}
+                className="secondary-button full-width-button"
                 type="button"
-                aria-label="Toggle dark mode"
-                aria-pressed={themeMode === 'dark'}
-                onClick={() =>
-                  setThemeMode((currentMode) =>
-                    currentMode === 'dark' ? 'light' : 'dark',
-                  )
-                }
+                onClick={() => {
+                  setShowRoomMenu(false)
+                  setDraftName(userName || draftName)
+                  setStep('room')
+                }}
               >
-                <span className="theme-switch-thumb"></span>
+                Add or edit room
               </button>
-            </div>
 
-            <button
-              className="secondary-button full-width-button"
-              type="button"
-              onClick={() => {
-                setShowRoomMenu(false)
-                setStep('room')
-              }}
-            >
-              Add or edit room
-            </button>
+              <div className="drawer-toggle-row">
+                <div>
+                  <p className="section-label">Theme</p>
+                  <h3>Dark mode</h3>
+                </div>
+                <button
+                  className={themeMode === 'dark' ? 'theme-switch active' : 'theme-switch'}
+                  type="button"
+                  aria-label="Toggle dark mode"
+                  aria-pressed={themeMode === 'dark'}
+                  onClick={() =>
+                    setThemeMode((currentMode) =>
+                      currentMode === 'dark' ? 'light' : 'dark',
+                    )
+                  }
+                >
+                  <span className="theme-switch-thumb"></span>
+                </button>
+              </div>
+            </div>
           </aside>
         </>
-      )}
-
-      {step === 'identity' && (
-        <section className="screen-card">
-          <div className="screen-heading">
-            <h2>Your name</h2>
-            <p>Enter the name your roommates will recognize.</p>
-          </div>
-
-          <form className="stack" onSubmit={handleNameSubmit}>
-            <label className="field">
-              <span>Your name</span>
-              <input
-                type="text"
-                placeholder="Example: Phoebe"
-                value={draftName}
-                onChange={(event) => setDraftName(event.target.value)}
-              />
-            </label>
-
-            <button className="primary-button" type="submit">
-              Continue to room setup
-            </button>
-          </form>
-        </section>
       )}
 
       {step === 'room' && (
         <section className="screen-card">
           <div className="screen-heading">
             <h2>Choose a room</h2>
-            <p>Create a new room or join with a code.</p>
+            <p>Set your display name for this room, then create a room or join with a code.</p>
           </div>
 
           <form className="stack" onSubmit={handleRoomSubmit}>
@@ -1234,6 +1197,16 @@ function App() {
                 Join room
               </button>
             </div>
+
+            <label className="field">
+              <span>Display name</span>
+              <input
+                type="text"
+                placeholder="Example: Phoebe"
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+              />
+            </label>
 
             {roomAction === 'create' ? (
               <>
@@ -1266,18 +1239,9 @@ function App() {
               </label>
             )}
 
-            <div className="inline-actions">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setStep('identity')}
-              >
-                Back
-              </button>
-              <button className="primary-button" type="submit">
-                Open room dashboard
-              </button>
-            </div>
+            <button className="primary-button" type="submit">
+              Open room dashboard
+            </button>
           </form>
         </section>
       )}
@@ -1366,120 +1330,114 @@ function App() {
                     </div>
 
                     {selectedCorrectionCards.length > 0 ? (
-                      <div className="selected-editor-grid">
-                        {selectedCorrectionCards.map(({ dateKey, draft }) => (
-                          <article className="editor-card selected-editor-card" key={dateKey}>
-                            <div className="selected-editor-head">
-                              <div>
-                                <p className="section-label">Selected date</p>
-                                <h3>{formatDateLabel(dateKey)}</h3>
+                      <div className="selected-editor-scroll-shell">
+                        <div className="selected-editor-grid">
+                          {selectedCorrectionCards.map(({ dateKey, draft }) => (
+                            <article className="editor-card selected-editor-card" key={dateKey}>
+                              <div className="selected-editor-head">
+                                <div>
+                                  <h3>{formatDateLabel(dateKey)}</h3>
+                                </div>
                               </div>
-                              <span className="selected-editor-note">
-                                {draft.mode === 'full-day'
-                                  ? '24 hours'
-                                  : draft.mode === 'range'
-                                    ? 'Time in and out'
-                                    : 'Custom hours'}
-                              </span>
-                            </div>
 
-                            <div className="editor-mode-row">
-                              <button
-                                className={
-                                  draft.mode === 'full-day'
-                                    ? 'mode-chip active'
-                                    : 'mode-chip'
-                                }
-                                type="button"
-                                onClick={() =>
-                                  handleCorrectionDraftModeChange(dateKey, 'full-day')
-                                }
-                              >
-                                24h
-                              </button>
-                              <button
-                                className={
-                                  draft.mode === 'range'
-                                    ? 'mode-chip active'
-                                    : 'mode-chip'
-                                }
-                                type="button"
-                                onClick={() =>
-                                  handleCorrectionDraftModeChange(dateKey, 'range')
-                                }
-                              >
-                                Time in/out
-                              </button>
-                              <button
-                                className={
-                                  draft.mode === 'hours'
-                                    ? 'mode-chip active'
-                                    : 'mode-chip'
-                                }
-                                type="button"
-                                onClick={() =>
-                                  handleCorrectionDraftModeChange(dateKey, 'hours')
-                                }
-                              >
-                                Hours
-                              </button>
-                            </div>
-
-                            {draft.mode === 'range' ? (
-                              <div className="selected-editor-fields">
-                                <label className="field compact-field">
-                                  <span>Time in</span>
-                                  <input
-                                    type="time"
-                                    value={draft.startTime}
-                                    onChange={(event) =>
-                                      handleCorrectionDraftChange(
-                                        dateKey,
-                                        'startTime',
-                                        event.target.value,
-                                      )
-                                    }
-                                  />
-                                </label>
-
-                                <label className="field compact-field">
-                                  <span>Time out</span>
-                                  <input
-                                    type="time"
-                                    value={draft.endTime}
-                                    onChange={(event) =>
-                                      handleCorrectionDraftChange(
-                                        dateKey,
-                                        'endTime',
-                                        event.target.value,
-                                      )
-                                    }
-                                  />
-                                </label>
-                              </div>
-                            ) : null}
-
-                            {draft.mode === 'hours' ? (
-                              <label className="field compact-field">
-                                <span>Hours stayed</span>
-                                <input
-                                  type="number"
-                                  min="0.5"
-                                  max="24"
-                                  step="0.5"
-                                  value={draft.hours}
-                                  onChange={(event) =>
-                                    handleCorrectionDraftChange(
-                                      dateKey,
-                                      'hours',
-                                      event.target.value,
-                                    )
+                              <div className="editor-mode-row">
+                                <button
+                                  className={
+                                    draft.mode === 'full-day'
+                                      ? 'mode-chip active'
+                                      : 'mode-chip'
                                   }
-                                />
-                              </label>
-                            ) : null}
-                          </article>
-                        ))}
+                                  type="button"
+                                  onClick={() =>
+                                    handleCorrectionDraftModeChange(dateKey, 'full-day')
+                                  }
+                                >
+                                  24h
+                                </button>
+                                <button
+                                  className={
+                                    draft.mode === 'range'
+                                      ? 'mode-chip active'
+                                      : 'mode-chip'
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    handleCorrectionDraftModeChange(dateKey, 'range')
+                                  }
+                                >
+                                  Time in/out
+                                </button>
+                                <button
+                                  className={
+                                    draft.mode === 'hours'
+                                      ? 'mode-chip active'
+                                      : 'mode-chip'
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    handleCorrectionDraftModeChange(dateKey, 'hours')
+                                  }
+                                >
+                                  Hours
+                                </button>
+                              </div>
+
+                              {draft.mode === 'range' ? (
+                                <div className="selected-editor-fields">
+                                  <label className="field compact-field">
+                                    <span>Time in</span>
+                                    <input
+                                      type="time"
+                                      value={draft.startTime}
+                                      onChange={(event) =>
+                                        handleCorrectionDraftChange(
+                                          dateKey,
+                                          'startTime',
+                                          event.target.value,
+                                        )
+                                      }
+                                    />
+                                  </label>
+
+                                  <label className="field compact-field">
+                                    <span>Time out</span>
+                                    <input
+                                      type="time"
+                                      value={draft.endTime}
+                                      onChange={(event) =>
+                                        handleCorrectionDraftChange(
+                                          dateKey,
+                                          'endTime',
+                                          event.target.value,
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                              ) : null}
+
+                              {draft.mode === 'hours' ? (
+                                <label className="field compact-field">
+                                  <span>Hours stayed</span>
+                                  <input
+                                    type="number"
+                                    min="0.5"
+                                    max="24"
+                                    step="0.5"
+                                    value={draft.hours}
+                                    onChange={(event) =>
+                                      handleCorrectionDraftChange(
+                                        dateKey,
+                                        'hours',
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </label>
+                              ) : null}
+                            </article>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
 

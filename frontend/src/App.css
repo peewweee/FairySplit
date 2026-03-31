@@ -282,6 +282,10 @@
 .toggle-button.active {
   color: #fff8fd;
   background: linear-gradient(135deg, #f06c9b, #ff9f7d);
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 6px 14px rgba(161, 47, 101, 0.2),
+    0 10px 18px rgba(240, 108, 155, 0.18);
 }
 
 .dashboard {
@@ -345,6 +349,8 @@
   background:
     radial-gradient(circle at top left, rgba(255, 204, 111, 0.24), transparent 28%),
     linear-gradient(180deg, rgba(255, 247, 244, 0.97), rgba(255, 237, 245, 0.94));
+  display: flex;
+  flex-direction: column;
 }
 
 .room-drawer.open {
@@ -475,17 +481,44 @@
 
 .drawer-header {
   display: flex;
-  justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
   margin-bottom: 16px;
+}
+
+.drawer-icon-button {
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border: 1px solid rgba(240, 108, 155, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 249, 252, 0.92);
+  position: relative;
+  cursor: pointer;
+}
+
+.drawer-icon-button span {
+  position: absolute;
+  top: 18px;
+  left: 11px;
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: #f06c9b;
+}
+
+.drawer-icon-button span:first-child {
+  transform: rotate(45deg);
+}
+
+.drawer-icon-button span:last-child {
+  transform: rotate(-45deg);
 }
 
 .drawer-room-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .drawer-room-button {
@@ -515,6 +548,13 @@
   width: 100%;
 }
 
+.drawer-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .drawer-toggle-row {
   display: flex;
   justify-content: space-between;
@@ -523,7 +563,6 @@
   padding: 16px 0 18px;
   border-top: 1px solid rgba(240, 108, 155, 0.1);
   border-bottom: 1px solid rgba(240, 108, 155, 0.1);
-  margin-bottom: 18px;
 }
 
 .theme-switch {
@@ -728,6 +767,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
+}
+
+.selected-editor-scroll-shell {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .selected-editor-card,
@@ -1405,6 +1450,7 @@ body.theme-dark .room-code-chip,
 body.theme-dark .calendar-month-header,
 body.theme-dark .mode-chip,
 body.theme-dark .accordion-chevron,
+body.theme-dark .drawer-icon-button,
 body.theme-dark .bill-card-close,
 body.theme-dark .menu-button,
 body.theme-dark .secondary-button,
@@ -1446,6 +1492,10 @@ body.theme-dark .field input:focus {
 }
 
 body.theme-dark .menu-button span {
+  background: #ff9ed0;
+}
+
+body.theme-dark .drawer-icon-button span {
   background: #ff9ed0;
 }
 
