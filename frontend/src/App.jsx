@@ -77,6 +77,28 @@ function addDays(date, amount) {
   return nextDate
 }
 
+function addMonths(date, amount) {
+  const nextDate = new Date(date)
+  nextDate.setDate(1)
+  nextDate.setMonth(nextDate.getMonth() + amount)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+function startOfMonth(date) {
+  const monthStart = new Date(date)
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+  return monthStart
+}
+
+function endOfMonth(date) {
+  const monthEnd = startOfMonth(date)
+  monthEnd.setMonth(monthEnd.getMonth() + 1, 0)
+  monthEnd.setHours(0, 0, 0, 0)
+  return monthEnd
+}
+
 function startOfWeek(date) {
   const weekStart = new Date(date)
   weekStart.setHours(0, 0, 0, 0)
@@ -113,6 +135,19 @@ function formatDuration(ms, includeSeconds = false) {
   }
 
   return `${days}d ${hours}h ${minutes}m`
+}
+
+function formatDailyTimer(ms) {
+  const safeMs = Math.max(0, ms)
+  const totalSeconds = Math.floor((safeMs % MS_IN_DAY) / MS_IN_SECOND)
+  const hours = Math.floor(totalSeconds / (MS_IN_HOUR / MS_IN_SECOND))
+  const minutes = Math.floor(
+    (totalSeconds % (MS_IN_HOUR / MS_IN_SECOND)) /
+      (MS_IN_MINUTE / MS_IN_SECOND),
+  )
+  const seconds = totalSeconds % (MS_IN_MINUTE / MS_IN_SECOND)
+
+  return `${padNumber(hours)}h ${padNumber(minutes)}m ${padNumber(seconds)}s`
 }
 
 function formatDateTimeLabel(value) {
@@ -164,6 +199,15 @@ function createBillDraft(referenceDate = new Date()) {
     amount: '',
     start: startKey,
     end: endKey,
+  }
+}
+
+function createCorrectionDraft() {
+  return {
+    mode: 'full-day',
+    startTime: '',
+    endTime: '',
+    hours: '',
   }
 }
 
@@ -251,6 +295,48 @@ function buildCalendarDays(
   return calendarDays
 }
 
+function buildCalendarMonths(
+  rangeStartDate,
+  rangeEndDate,
+  recordedDateKeys,
+  selectedDateKeys,
+  selectedRemovalDates,
+  todayKey,
+) {
+  const monthSections = []
+  const selectedRemovalSet = new Set(selectedRemovalDates)
+  let monthCursor = startOfMonth(rangeStartDate)
+  const lastMonth = startOfMonth(rangeEndDate)
+
+  while (monthCursor <= lastMonth) {
+    const monthStartKey = toDateKey(startOfMonth(monthCursor))
+    const monthEndKey = toDateKey(endOfMonth(monthCursor))
+    const monthDays = buildCalendarDays(
+      monthStartKey,
+      monthEndKey,
+      recordedDateKeys,
+      selectedDateKeys,
+      todayKey,
+    ).map((day) => ({
+      ...day,
+      isInCurrentMonth:
+        getDateFromKey(day.dateKey).getMonth() === monthCursor.getMonth() &&
+        getDateFromKey(day.dateKey).getFullYear() === monthCursor.getFullYear(),
+      isMarkedForRemoval: selectedRemovalSet.has(day.dateKey),
+    }))
+
+    monthSections.push({
+      monthKey: `${monthCursor.getFullYear()}-${padNumber(monthCursor.getMonth() + 1)}`,
+      title: calendarTitleFormatter.format(monthCursor),
+      days: monthDays,
+    })
+
+    monthCursor = addMonths(monthCursor, 1)
+  }
+
+  return monthSections
+}
+
 function subtractSelectedDatesFromSession(session, selectedRemovalDateKeys) {
   if (selectedRemovalDateKeys.size === 0) {
     return [session]
@@ -310,6 +396,13 @@ function App() {
   const [step, setStep] = useState('identity')
   const [draftName, setDraftName] = useState('')
   const [userName, setUserName] = useState('')
+  const [themeMode, setThemeMode] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'light'
+    }
+
+    return window.localStorage.getItem('fairysplit-theme') ?? 'light'
+  })
   const [roomAction, setRoomAction] = useState('create')
   const [roomName, setRoomName] = useState('Moonlight Dorm')
   const [roomCode, setRoomCode] = useState('FAIRY-204')
@@ -324,12 +417,11 @@ function App() {
   const [showCorrectionCalendar, setShowCorrectionCalendar] = useState(false)
   const [selectedCorrectionDates, setSelectedCorrectionDates] = useState([])
   const [selectedRemovalDates, setSelectedRemovalDates] = useState([])
-  const [correctionStartTime, setCorrectionStartTime] = useState('')
-  const [correctionEndTime, setCorrectionEndTime] = useState('')
-  const [correctionHours, setCorrectionHours] = useState('')
+  const [correctionDetailsByDate, setCorrectionDetailsByDate] = useState({})
   const [correctionError, setCorrectionError] = useState('')
   const [billScrollProgress, setBillScrollProgress] = useState(0)
   const [openBillBreakdowns, setOpenBillBreakdowns] = useState([])
+  const [roomCodeCopied, setRoomCodeCopied] = useState(false)
 
   useEffect(() => {
     if (!activeSessionStart) {
@@ -343,6 +435,23 @@ function App() {
     return () => window.clearInterval(intervalId)
   }, [activeSessionStart])
 
+  useEffect(() => {
+    document.body.classList.toggle('theme-dark', themeMode === 'dark')
+    window.localStorage.setItem('fairysplit-theme', themeMode)
+  }, [themeMode])
+
+  useEffect(() => {
+    if (!roomCodeCopied) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setRoomCodeCopied(false)
+    }, 1400)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [roomCodeCopied])
+
   const displayName = userName || 'You'
   const currentRoomName = roomName.trim() || 'Moonlight Dorm'
   const todayKey = toDateKey(new Date(now))
@@ -354,14 +463,6 @@ function App() {
       defaultDays: resident.days,
     })),
   ]
-  const { startKey: calendarStartKey, endKey: calendarEndKey } =
-    getMonthRangeKeys(new Date(now))
-  const calendarTitle =
-    calendarStartKey.slice(0, 7) === calendarEndKey.slice(0, 7)
-      ? calendarTitleFormatter.format(getDateFromKey(calendarStartKey))
-      : `${calendarTitleFormatter.format(
-          getDateFromKey(calendarStartKey),
-        )} - ${calendarTitleFormatter.format(getDateFromKey(calendarEndKey))}`
 
   const activeDurationMs = activeSessionStart
     ? Math.max(0, now - new Date(activeSessionStart).getTime())
@@ -379,6 +480,32 @@ function App() {
   const trackedEntries = activeSessionEntry
     ? [...sessions, activeSessionEntry]
     : sessions
+  const calendarBoundaryDates = [
+    startOfMonth(addMonths(new Date(now), -1)),
+    endOfMonth(addMonths(new Date(now), 1)),
+  ]
+
+  trackedEntries.forEach((entry) => {
+    calendarBoundaryDates.push(startOfMonth(new Date(entry.start)))
+    calendarBoundaryDates.push(endOfMonth(new Date(entry.end)))
+  })
+
+  bills.forEach((bill) => {
+    const normalizedRange = normalizeDateRange(bill.start, bill.end)
+    calendarBoundaryDates.push(
+      startOfMonth(getDateFromKey(normalizedRange.startKey)),
+    )
+    calendarBoundaryDates.push(endOfMonth(getDateFromKey(normalizedRange.endKey)))
+  })
+
+  const calendarRangeStart = new Date(
+    Math.min(...calendarBoundaryDates.map((date) => date.getTime())),
+  )
+  const calendarRangeEnd = new Date(
+    Math.max(...calendarBoundaryDates.map((date) => date.getTime())),
+  )
+  const calendarRangeStartKey = toDateKey(startOfMonth(calendarRangeStart))
+  const calendarRangeEndKey = toDateKey(endOfMonth(calendarRangeEnd))
   const billCards = bills.map((bill) => {
     const memberNames = bill.memberNames ?? [bill.createdBy].filter(Boolean)
     const totalBillAmount = Number(bill.amount) || 0
@@ -426,14 +553,23 @@ function App() {
   const billIndicatorWidth =
     totalBillPanels > 1 ? Math.max(26, 100 / totalBillPanels) : 100
   const billIndicatorOffset = (100 - billIndicatorWidth) * billScrollProgress
-  const recordedDateKeys = buildRecordedDateKeys(trackedEntries)
-  const calendarDays = buildCalendarDays(
-    calendarStartKey,
-    calendarEndKey,
+  const recordedDateKeys = buildRecordedDateKeys(sessions)
+  const calendarMonths = buildCalendarMonths(
+    calendarRangeStart,
+    calendarRangeEnd,
     recordedDateKeys,
     selectedCorrectionDates,
+    selectedRemovalDates,
     todayKey,
   )
+  const selectedCorrectionCards = selectedCorrectionDates
+    .slice()
+    .sort()
+    .map((dateKey) => ({
+      dateKey,
+      draft: correctionDetailsByDate[dateKey] ?? createCorrectionDraft(),
+    }))
+  const selectedRemovalCards = selectedRemovalDates.slice().sort()
   const visibleSessions = sessions.slice(0, 5)
   const latestActivityDuration = latestRecordedSession
     ? formatDuration(
@@ -447,13 +583,10 @@ function App() {
       ? `Last out ${formatDateTimeLabel(latestRecordedSession.end)}`
       : 'No stay logged yet'
   const activityLineTwo = activeSessionStart
-    ? formatDuration(activeDurationMs, true)
-    : latestActivityDuration ?? 'Timer ready'
-  const correctionHelperText = hasSelectedCorrections
-    ? 'Leave the fields blank to save each selected date as 24 hours.'
-    : hasSelectedRemovals
-      ? 'Tap save to remove the selected logged dates.'
-      : 'Tap an empty date to log it, or a logged date to remove it.'
+    ? `${formatDailyTimer(activeDurationMs)} today`
+    : latestActivityDuration
+      ? `Last stay ${latestActivityDuration}`
+      : 'Ready for your next log'
 
   function handleNameSubmit(event) {
     event.preventDefault()
@@ -518,31 +651,122 @@ function App() {
     handleEnterDorm()
   }
 
-  function handleSelectCorrectionDate(dateKey) {
-    const selectedDay = calendarDays.find((day) => day.dateKey === dateKey)
+  function handleCorrectionDraftModeChange(dateKey, mode) {
+    setCorrectionDetailsByDate((currentDrafts) => {
+      const currentDraft = currentDrafts[dateKey] ?? createCorrectionDraft()
 
-    if (!selectedDay || !selectedDay.isInRange) {
+      if (mode === 'full-day') {
+        return {
+          ...currentDrafts,
+          [dateKey]: {
+            ...currentDraft,
+            mode,
+            startTime: '',
+            endTime: '',
+            hours: '',
+          },
+        }
+      }
+
+      if (mode === 'range') {
+        return {
+          ...currentDrafts,
+          [dateKey]: {
+            ...currentDraft,
+            mode,
+            hours: '',
+          },
+        }
+      }
+
+      return {
+        ...currentDrafts,
+        [dateKey]: {
+          ...currentDraft,
+          mode,
+          startTime: '',
+          endTime: '',
+        },
+      }
+    })
+    setCorrectionError('')
+  }
+
+  function handleCorrectionDraftChange(dateKey, field, value) {
+    setCorrectionDetailsByDate((currentDrafts) => {
+      const currentDraft = currentDrafts[dateKey] ?? createCorrectionDraft()
+      const nextDraft = {
+        ...currentDraft,
+        [field]: value,
+      }
+
+      if (field === 'hours' && value) {
+        nextDraft.mode = 'hours'
+        nextDraft.startTime = ''
+        nextDraft.endTime = ''
+      }
+
+      if ((field === 'startTime' || field === 'endTime') && value) {
+        nextDraft.mode = 'range'
+        nextDraft.hours = ''
+      }
+
+      return {
+        ...currentDrafts,
+        [dateKey]: nextDraft,
+      }
+    })
+    setCorrectionError('')
+  }
+
+  function handleSelectCorrectionDate(dateKey) {
+    if (dateKey < calendarRangeStartKey || dateKey > calendarRangeEndKey) {
       return
     }
 
-    if (selectedDay.hasRecorded) {
+    if (recordedDateKeys.has(dateKey)) {
+      const isMarkedForRemoval = selectedRemovalDates.includes(dateKey)
+
       setSelectedRemovalDates((currentDates) =>
-        currentDates.includes(dateKey)
+        isMarkedForRemoval
           ? currentDates.filter((currentDate) => currentDate !== dateKey)
-          : [...currentDates, dateKey],
+          : [...currentDates, dateKey].sort(),
       )
       setSelectedCorrectionDates((currentDates) =>
         currentDates.filter((currentDate) => currentDate !== dateKey),
       )
+      setCorrectionDetailsByDate((currentDrafts) => {
+        if (!currentDrafts[dateKey]) {
+          return currentDrafts
+        }
+
+        const nextDrafts = { ...currentDrafts }
+        delete nextDrafts[dateKey]
+        return nextDrafts
+      })
     } else {
+      const isSelectedForCorrection = selectedCorrectionDates.includes(dateKey)
+
       setSelectedCorrectionDates((currentDates) =>
-        currentDates.includes(dateKey)
+        isSelectedForCorrection
           ? currentDates.filter((currentDate) => currentDate !== dateKey)
-          : [...currentDates, dateKey],
+          : [...currentDates, dateKey].sort(),
       )
       setSelectedRemovalDates((currentDates) =>
         currentDates.filter((currentDate) => currentDate !== dateKey),
       )
+      setCorrectionDetailsByDate((currentDrafts) => {
+        if (isSelectedForCorrection) {
+          const nextDrafts = { ...currentDrafts }
+          delete nextDrafts[dateKey]
+          return nextDrafts
+        }
+
+        return {
+          ...currentDrafts,
+          [dateKey]: currentDrafts[dateKey] ?? createCorrectionDraft(),
+        }
+      })
     }
 
     setCorrectionError('')
@@ -556,22 +780,38 @@ function App() {
       return
     }
 
-    if (
-      hasSelectedCorrections &&
-      ((correctionStartTime && !correctionEndTime) ||
-        (!correctionStartTime && correctionEndTime))
-    ) {
-      setCorrectionError('Enter both time in and time out, or leave them blank.')
-      return
-    }
+    const invalidDraft = selectedCorrectionCards.find(({ draft }) => {
+      if (draft.mode === 'range') {
+        return !draft.startTime || !draft.endTime
+      }
 
-    if (hasSelectedCorrections && correctionHours) {
-      const parsedHours = Number(correctionHours)
+      if (draft.mode === 'hours') {
+        const parsedHours = Number(draft.hours)
+        return (
+          !draft.hours ||
+          Number.isNaN(parsedHours) ||
+          parsedHours <= 0 ||
+          parsedHours > 24
+        )
+      }
 
-      if (Number.isNaN(parsedHours) || parsedHours <= 0) {
-        setCorrectionError('Hours stayed must be more than 0.')
+      return false
+    })
+
+    if (invalidDraft) {
+      const { dateKey, draft } = invalidDraft
+
+      if (draft.mode === 'range') {
+        setCorrectionError(
+          `Add both time in and time out for ${formatDateLabel(dateKey)}.`,
+        )
         return
       }
+
+      setCorrectionError(
+        `Hours stayed for ${formatDateLabel(dateKey)} must be between 0.5 and 24.`,
+      )
+      return
     }
 
     setSessions((currentSessions) => {
@@ -587,17 +827,12 @@ function App() {
             selectedDateSet.has(toDateKey(new Date(session.start)))
           ),
       )
-      const addedSessions = selectedCorrectionDates.map((dateKey) => {
+      const addedSessions = selectedCorrectionCards.map(({ dateKey, draft }) => {
         const startDate = new Date(`${dateKey}T00:00:00`)
-        let endDate = addDays(startDate, 1)
 
-        if (correctionHours) {
-          const parsedHours = Number(correctionHours)
-          const safeHours = Math.min(parsedHours, 24)
-          endDate = new Date(startDate.getTime() + safeHours * MS_IN_HOUR)
-        } else if (correctionStartTime && correctionEndTime) {
-          const customStart = new Date(`${dateKey}T${correctionStartTime}:00`)
-          let customEnd = new Date(`${dateKey}T${correctionEndTime}:00`)
+        if (draft.mode === 'range') {
+          const customStart = new Date(`${dateKey}T${draft.startTime}:00`)
+          let customEnd = new Date(`${dateKey}T${draft.endTime}:00`)
 
           if (customEnd <= customStart) {
             customEnd = addDays(customEnd, 1)
@@ -611,10 +846,23 @@ function App() {
           }
         }
 
+        if (draft.mode === 'hours') {
+          const parsedHours = Number(draft.hours)
+          const safeHours = Math.min(parsedHours, 24)
+          const endDate = new Date(startDate.getTime() + safeHours * MS_IN_HOUR)
+
+          return {
+            id: createSessionId(),
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            source: 'manual',
+          }
+        }
+
         return {
           id: createSessionId(),
           start: startDate.toISOString(),
-          end: endDate.toISOString(),
+          end: addDays(startDate, 1).toISOString(),
           source: 'manual',
         }
       })
@@ -628,9 +876,23 @@ function App() {
     setCorrectionError('')
     setSelectedCorrectionDates([])
     setSelectedRemovalDates([])
-    setCorrectionStartTime('')
-    setCorrectionEndTime('')
-    setCorrectionHours('')
+    setCorrectionDetailsByDate({})
+  }
+
+  async function handleCopyRoomCode() {
+    if (!roomCode) {
+      return
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(roomCode)
+      }
+
+      setRoomCodeCopied(true)
+    } catch {
+      setRoomCodeCopied(false)
+    }
   }
 
   function resetBillEditor() {
@@ -779,6 +1041,12 @@ function App() {
     ) {
       resetBillEditor()
     }
+
+    if (isRemovingSelf) {
+      setOpenBillBreakdowns((currentIds) =>
+        currentIds.filter((currentId) => currentId !== billId),
+      )
+    }
   }
 
   function handleBillScroll(event) {
@@ -791,7 +1059,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={themeMode === 'dark' ? 'app-shell theme-dark' : 'app-shell'}>
       {step !== 'dashboard' ? (
         <section className="hero-panel">
           <div className="hero-copy">
@@ -875,6 +1143,26 @@ function App() {
                   <span>{roomOption.code}</span>
                 </button>
               ))}
+            </div>
+
+            <div className="drawer-toggle-row">
+              <div>
+                <p className="section-label">Theme</p>
+                <h3>Dark mode</h3>
+              </div>
+              <button
+                className={themeMode === 'dark' ? 'theme-switch active' : 'theme-switch'}
+                type="button"
+                aria-label="Toggle dark mode"
+                aria-pressed={themeMode === 'dark'}
+                onClick={() =>
+                  setThemeMode((currentMode) =>
+                    currentMode === 'dark' ? 'light' : 'dark',
+                  )
+                }
+              >
+                <span className="theme-switch-thumb"></span>
+              </button>
             </div>
 
             <button
@@ -1002,9 +1290,19 @@ function App() {
                 <p className="section-label">Room</p>
                 <div className="room-title-row">
                   <h2>{currentRoomName}</h2>
-                  <span className="room-code-chip">
-                    {roomCode || 'Code not set'}
-                  </span>
+                  <button
+                    className={roomCodeCopied ? 'room-code-chip copied' : 'room-code-chip'}
+                    type="button"
+                    aria-label={`Copy room code ${roomCode}`}
+                    onClick={handleCopyRoomCode}
+                  >
+                    <span className="room-code-value">
+                      {roomCode || 'Code not set'}
+                    </span>
+                    <span className="room-code-hint">
+                      {roomCodeCopied ? 'Copied' : 'Tap to copy'}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1035,7 +1333,9 @@ function App() {
               >
                 <div>
                   <p className="section-label">Manual input of dates</p>
-                  <h3>Correction calendar</h3>
+                  <p className="accordion-copy">
+                    Tap dates to log or unlog them.
+                  </p>
                 </div>
                 <span
                   className={
@@ -1048,144 +1348,206 @@ function App() {
               </button>
 
               {showCorrectionCalendar ? (
-                <div className="correction-stack reveal-panel">
-                  {hasSelectedCorrections ? (
-                    <div className="correction-toolbar">
-                      <label className="field">
-                        <span>Time in</span>
-                        <input
-                          type="time"
-                          value={correctionStartTime}
-                          disabled={Boolean(correctionHours)}
-                          onChange={(event) =>
-                            setCorrectionStartTime(event.target.value)
-                          }
-                        />
-                      </label>
+                <form className="correction-stack reveal-panel" onSubmit={handleCorrectionSave}>
+                  <div className="calendar-card manual-calendar-card">
+                    <div className="calendar-header manual-calendar-header">
+                      <div>
+                        <strong>Manual dates</strong>
+                        <p>Empty dates log a stay. Logged dates unlog it.</p>
+                      </div>
 
-                      <label className="field">
-                        <span>Time out</span>
-                        <input
-                          type="time"
-                          value={correctionEndTime}
-                          disabled={Boolean(correctionHours)}
-                          onChange={(event) =>
-                            setCorrectionEndTime(event.target.value)
-                          }
-                        />
-                      </label>
-
-                      <label className="field">
-                        <span>Hours stayed</span>
-                        <input
-                          type="number"
-                          min="0.5"
-                          max="24"
-                          step="0.5"
-                          value={correctionHours}
-                          disabled={Boolean(correctionStartTime || correctionEndTime)}
-                          onChange={(event) => setCorrectionHours(event.target.value)}
-                        />
-                      </label>
+                      <button
+                        className="primary-button calendar-save-button"
+                        type="submit"
+                        disabled={!hasSelectedCorrections && !hasSelectedRemovals}
+                      >
+                        Save changes
+                      </button>
                     </div>
-                  ) : null}
 
-                  <div className="correction-layout">
-                    <div className="calendar-card">
-                      <div className="calendar-header">
-                        <div>
-                          <strong>{calendarTitle}</strong>
-                          <p>{correctionHelperText}</p>
+                    {selectedCorrectionCards.length > 0 ? (
+                      <div className="selected-editor-grid">
+                        {selectedCorrectionCards.map(({ dateKey, draft }) => (
+                          <article className="editor-card selected-editor-card" key={dateKey}>
+                            <div className="selected-editor-head">
+                              <div>
+                                <p className="section-label">Selected date</p>
+                                <h3>{formatDateLabel(dateKey)}</h3>
+                              </div>
+                              <span className="selected-editor-note">
+                                {draft.mode === 'full-day'
+                                  ? '24 hours'
+                                  : draft.mode === 'range'
+                                    ? 'Time in and out'
+                                    : 'Custom hours'}
+                              </span>
+                            </div>
+
+                            <div className="editor-mode-row">
+                              <button
+                                className={
+                                  draft.mode === 'full-day'
+                                    ? 'mode-chip active'
+                                    : 'mode-chip'
+                                }
+                                type="button"
+                                onClick={() =>
+                                  handleCorrectionDraftModeChange(dateKey, 'full-day')
+                                }
+                              >
+                                24h
+                              </button>
+                              <button
+                                className={
+                                  draft.mode === 'range'
+                                    ? 'mode-chip active'
+                                    : 'mode-chip'
+                                }
+                                type="button"
+                                onClick={() =>
+                                  handleCorrectionDraftModeChange(dateKey, 'range')
+                                }
+                              >
+                                Time in/out
+                              </button>
+                              <button
+                                className={
+                                  draft.mode === 'hours'
+                                    ? 'mode-chip active'
+                                    : 'mode-chip'
+                                }
+                                type="button"
+                                onClick={() =>
+                                  handleCorrectionDraftModeChange(dateKey, 'hours')
+                                }
+                              >
+                                Hours
+                              </button>
+                            </div>
+
+                            {draft.mode === 'range' ? (
+                              <div className="selected-editor-fields">
+                                <label className="field compact-field">
+                                  <span>Time in</span>
+                                  <input
+                                    type="time"
+                                    value={draft.startTime}
+                                    onChange={(event) =>
+                                      handleCorrectionDraftChange(
+                                        dateKey,
+                                        'startTime',
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </label>
+
+                                <label className="field compact-field">
+                                  <span>Time out</span>
+                                  <input
+                                    type="time"
+                                    value={draft.endTime}
+                                    onChange={(event) =>
+                                      handleCorrectionDraftChange(
+                                        dateKey,
+                                        'endTime',
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            ) : null}
+
+                            {draft.mode === 'hours' ? (
+                              <label className="field compact-field">
+                                <span>Hours stayed</span>
+                                <input
+                                  type="number"
+                                  min="0.5"
+                                  max="24"
+                                  step="0.5"
+                                  value={draft.hours}
+                                  onChange={(event) =>
+                                    handleCorrectionDraftChange(
+                                      dateKey,
+                                      'hours',
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+                              </label>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {selectedRemovalCards.length > 0 ? (
+                      <div className="editor-card removal-card">
+                        <div className="selected-editor-head">
+                          <div>
+                            <p className="section-label">Will unlog</p>
+                            <h3>{selectedRemovalCards.length} day(s)</h3>
+                          </div>
+                          <span className="selected-editor-note">Tap save to remove</span>
+                        </div>
+
+                        <div className="selected-date-list">
+                          {selectedRemovalCards.map((dateKey) => (
+                            <span className="selected-date-chip remove-chip" key={dateKey}>
+                              {formatDateLabel(dateKey)}
+                            </span>
+                          ))}
                         </div>
                       </div>
+                    ) : null}
 
-                      <div className="calendar-weekdays">
-                        {weekdayLabels.map((dayLabel) => (
-                          <span className="weekday-chip" key={dayLabel}>
-                            {dayLabel}
-                          </span>
-                        ))}
-                      </div>
+                    {correctionError ? (
+                      <p className="error-text">{correctionError}</p>
+                    ) : null}
 
-                      <div className="calendar-grid">
-                        {calendarDays.map((day) => (
-                          <button
-                            className={
-                              day.isInRange
-                                ? `calendar-day${day.hasRecorded ? ' recorded' : ''}${
-                                    day.isSelected ? ' selected' : ''
-                                  }${
-                                    selectedRemovalDates.includes(day.dateKey)
-                                      ? ' remove-marked'
-                                      : ''
-                                  }${day.isToday ? ' today' : ''}`
-                                : 'calendar-day muted'
-                            }
-                            disabled={!day.isInRange}
-                            key={day.dateKey}
-                            type="button"
-                            onClick={() => handleSelectCorrectionDate(day.dateKey)}
-                          >
-                            <span className="calendar-day-number">
-                              {day.dayNumber}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <div className="calendar-scroll-shell">
+                      {calendarMonths.map((month) => (
+                        <section className="calendar-month-section" key={month.monthKey}>
+                          <div className="calendar-month-header">
+                            <strong>{month.title}</strong>
+                          </div>
 
-                    <div className="editor-card">
-                      <p className="section-label">Selected dates</p>
-                      <h3>
-                        {!hasSelectedCorrections && !hasSelectedRemovals
-                          ? 'Nothing selected'
-                          : `${selectedCorrectionDates.length} add / ${selectedRemovalDates.length} remove`}
-                      </h3>
+                          <div className="calendar-weekdays">
+                            {weekdayLabels.map((dayLabel) => (
+                              <span className="weekday-chip" key={`${month.monthKey}-${dayLabel}`}>
+                                {dayLabel}
+                              </span>
+                            ))}
+                          </div>
 
-                      <div className="selected-date-list">
-                        {hasSelectedCorrections || hasSelectedRemovals ? (
-                          <>
-                            {selectedCorrectionDates
-                              .slice()
-                              .sort()
-                              .map((dateKey) => (
-                                <span className="selected-date-chip" key={dateKey}>
-                                  {formatDateLabel(dateKey)}
-                                </span>
-                              ))}
-                            {selectedRemovalDates
-                              .slice()
-                              .sort()
-                              .map((dateKey) => (
-                                <span
-                                  className="selected-date-chip remove-chip"
-                                  key={dateKey}
-                                >
-                                  {formatDateLabel(dateKey)}
-                                </span>
-                              ))}
-                          </>
-                        ) : (
-                          <p className="editor-note">No pending calendar changes.</p>
-                        )}
-                      </div>
-
-                      {correctionError ? (
-                        <p className="error-text">{correctionError}</p>
-                      ) : null}
-
-                      <form className="stack" onSubmit={handleCorrectionSave}>
-                        <button
-                          className="primary-button"
-                          type="submit"
-                          disabled={!hasSelectedCorrections && !hasSelectedRemovals}
-                        >
-                          Save calendar changes
-                        </button>
-                      </form>
+                          <div className="calendar-grid">
+                            {month.days.map((day) => (
+                              <button
+                                className={
+                                  day.isInCurrentMonth
+                                    ? `calendar-day${day.hasRecorded ? ' recorded' : ''}${
+                                        day.isSelected ? ' selected' : ''
+                                      }${day.isMarkedForRemoval ? ' remove-marked' : ''}${
+                                        day.isToday ? ' today' : ''
+                                      }`
+                                    : 'calendar-day muted'
+                                }
+                                disabled={!day.isInCurrentMonth}
+                                key={day.dateKey}
+                                type="button"
+                                onClick={() => handleSelectCorrectionDate(day.dateKey)}
+                              >
+                                <span className="calendar-day-number">{day.dayNumber}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
                     </div>
                   </div>
-                </div>
+                </form>
               ) : null}
             </div>
           </article>
@@ -1210,7 +1572,6 @@ function App() {
                     <article className="bill-card featured" key={billCard.id}>
                       <div className="bill-card-top">
                         <div>
-                          <p className="section-label">Bill</p>
                           <h4>{billCard.name}</h4>
                         </div>
                         <span className="bill-pill">
@@ -1220,20 +1581,18 @@ function App() {
 
                       <div className="bill-card-values">
                         <span>Total bill</span>
-                        <strong>{currencyFormatter.format(billCard.total)}</strong>
+                        <div className="bill-total-copy">
+                          <strong>{currencyFormatter.format(billCard.total)}</strong>
+                          <span className="bill-date-text">
+                            {billCard.periodLabel}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="bill-card-values">
-                        <span>Bill date range</span>
-                        <strong className="bill-card-inline">
-                          {billCard.periodLabel}
-                        </strong>
-                      </div>
-
-                      <div className="bill-card-values">
-                        <span>Your share</span>
-                        {billCard.viewerJoined ? (
-                          <div className="bill-share-actions">
+                      {billCard.viewerJoined ? (
+                        <div className="bill-card-values">
+                          <span>Your share</span>
+                          <div className="bill-share-stack">
                             <strong>
                               {currencyFormatter.format(billCard.yourShare ?? 0)}
                             </strong>
@@ -1247,101 +1606,105 @@ function App() {
                               Leave
                             </button>
                           </div>
-                        ) : (
-                          <div className="bill-share-cta">
-                            <span className="bill-join-note">
-                              Join to see your share
-                            </span>
-                            <button
-                              className="secondary-button bill-join-button"
-                              type="button"
-                              onClick={() =>
-                                handleToggleBillMember(billCard.id, displayName)
-                              }
-                            >
-                              Join
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        className="bill-card-toggle"
-                        type="button"
-                        aria-expanded={isBreakdownOpen}
-                        onClick={() => handleToggleBillBreakdown(billCard.id)}
-                      >
-                        <span>Everyone&apos;s share</span>
-                        <span
-                          className={
-                            isBreakdownOpen
-                              ? 'accordion-chevron open'
-                              : 'accordion-chevron'
-                          }
-                          aria-hidden="true"
-                        ></span>
-                      </button>
-
-                      {isBreakdownOpen ? (
-                        <div className="bill-breakdown-list reveal-panel">
-                          {billCard.shareRows.map((shareRow) => {
-                            const canManageMember =
-                              billCard.viewerJoined || shareRow.isCurrentUser
-
-                            return (
-                              <div
-                                className={
-                                  shareRow.joined
-                                    ? 'bill-breakdown-row'
-                                    : 'bill-breakdown-row muted'
-                                }
-                                key={`${billCard.id}-${shareRow.name}`}
-                              >
-                                <div>
-                                  <strong>
-                                    {shareRow.isCurrentUser
-                                      ? `${shareRow.name} (You)`
-                                      : shareRow.name}
-                                  </strong>
-                                  <p>
-                                    {shareRow.joined
-                                      ? `${shareRow.stayedDays.toFixed(2)} days`
-                                      : 'Not included in this bill'}
-                                  </p>
-                                </div>
-
-                                <div className="bill-breakdown-actions">
-                                  <strong>
-                                    {shareRow.joined
-                                      ? currencyFormatter.format(shareRow.share)
-                                      : '-'}
-                                  </strong>
-
-                                  {canManageMember ? (
-                                    <button
-                                      className="bill-link-button"
-                                      type="button"
-                                      onClick={() =>
-                                        handleToggleBillMember(
-                                          billCard.id,
-                                          shareRow.name,
-                                        )
-                                      }
-                                    >
-                                      {shareRow.joined
-                                        ? shareRow.isCurrentUser
-                                          ? 'Leave'
-                                          : 'Remove'
-                                        : shareRow.isCurrentUser
-                                          ? 'Join'
-                                          : 'Add'}
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </div>
-                            )
-                          })}
                         </div>
+                      ) : (
+                        <div className="bill-share-cta solo">
+                          <span className="bill-join-note">
+                            Join to see your share
+                          </span>
+                          <button
+                            className="primary-button bill-join-button"
+                            type="button"
+                            onClick={() =>
+                              handleToggleBillMember(billCard.id, displayName)
+                            }
+                          >
+                            Join
+                          </button>
+                        </div>
+                      )}
+
+                      {billCard.viewerJoined ? (
+                        <>
+                          <button
+                            className="bill-card-toggle"
+                            type="button"
+                            aria-expanded={isBreakdownOpen}
+                            onClick={() => handleToggleBillBreakdown(billCard.id)}
+                          >
+                            <span>Everyone&apos;s share</span>
+                            <span
+                              className={
+                                isBreakdownOpen
+                                  ? 'accordion-chevron open'
+                                  : 'accordion-chevron'
+                              }
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+
+                          {isBreakdownOpen ? (
+                            <div className="bill-breakdown-list reveal-panel">
+                              {billCard.shareRows.map((shareRow) => {
+                                const canManageMember =
+                                  billCard.viewerJoined || shareRow.isCurrentUser
+
+                                return (
+                                  <div
+                                    className={
+                                      shareRow.joined
+                                        ? 'bill-breakdown-row'
+                                        : 'bill-breakdown-row muted'
+                                    }
+                                    key={`${billCard.id}-${shareRow.name}`}
+                                  >
+                                    <div>
+                                      <strong>
+                                        {shareRow.isCurrentUser
+                                          ? `${shareRow.name} (You)`
+                                          : shareRow.name}
+                                      </strong>
+                                      <p>
+                                        {shareRow.joined
+                                          ? `${shareRow.stayedDays.toFixed(2)} days`
+                                          : 'Not included in this bill'}
+                                      </p>
+                                    </div>
+
+                                    <div className="bill-breakdown-actions">
+                                      <strong>
+                                        {shareRow.joined
+                                          ? currencyFormatter.format(shareRow.share)
+                                          : '-'}
+                                      </strong>
+
+                                      {canManageMember ? (
+                                        <button
+                                          className="bill-link-button"
+                                          type="button"
+                                          onClick={() =>
+                                            handleToggleBillMember(
+                                              billCard.id,
+                                              shareRow.name,
+                                            )
+                                          }
+                                        >
+                                          {shareRow.joined
+                                            ? shareRow.isCurrentUser
+                                              ? 'Leave'
+                                              : 'Remove'
+                                            : shareRow.isCurrentUser
+                                              ? 'Join'
+                                              : 'Add'}
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : null}
+                        </>
                       ) : null}
 
                       {billCard.viewerJoined ? (
