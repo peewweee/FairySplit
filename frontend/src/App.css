@@ -1,61 +1,126 @@
 .app-shell {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1220px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding: 24px 0 44px;
+}
+
+.hero-panel,
+.quick-focus-card,
+.correction-card,
+.screen-card,
+.panel,
+.room-banner,
+.room-drawer {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(108, 79, 50, 0.16);
+  border-radius: 28px;
+  background: rgba(255, 251, 245, 0.84);
+  box-shadow: 0 24px 50px rgba(85, 61, 37, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.hero-panel::after,
+.quick-focus-card::after,
+.correction-card::after {
+  content: '';
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(255, 244, 196, 0.55), transparent 68%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.hero-panel::after {
+  top: -40px;
+  right: -40px;
+}
+
+.quick-focus-card::after {
+  right: -40px;
+  bottom: -40px;
+}
+
+.correction-card::after {
+  top: -60px;
+  left: -40px;
 }
 
 .hero-panel,
 .screen-card,
-.panel,
-.room-banner {
-  background: rgba(255, 251, 245, 0.84);
-  border: 1px solid rgba(108, 79, 50, 0.16);
-  border-radius: 28px;
-  box-shadow: 0 24px 50px rgba(85, 61, 37, 0.1);
-  backdrop-filter: blur(18px);
+.quick-focus-card,
+.correction-card,
+.room-banner,
+.panel {
+  padding: 24px;
 }
 
 .hero-panel {
   display: flex;
   justify-content: space-between;
-  gap: 24px;
-  padding: 32px;
-  margin-bottom: 24px;
+  gap: 20px;
+  margin-bottom: 20px;
   background:
-    radial-gradient(circle at top left, rgba(248, 193, 112, 0.35), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(88, 153, 123, 0.25), transparent 32%),
+    radial-gradient(circle at top left, rgba(248, 193, 112, 0.34), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(88, 153, 123, 0.24), transparent 30%),
     rgba(255, 251, 245, 0.84);
+}
+
+.hero-panel.compact {
+  padding-block: 18px;
+}
+
+.hero-copy,
+.hero-utility,
+.quick-focus-copy,
+.quick-action-panel,
+.dashboard-brand {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-copy h1,
 .screen-heading h2,
+.quick-focus-card h3,
+.correction-card h3,
+.panel h3,
 .room-banner h2,
-.panel h3 {
+.editor-card h3,
+.dashboard-brand h2,
+.drawer-header h3 {
   margin: 0;
   color: #253126;
   font-family: Cambria, Georgia, serif;
 }
 
 .hero-copy h1 {
-  font-size: clamp(2.8rem, 5vw, 4.8rem);
+  font-size: clamp(2.6rem, 5vw, 4.6rem);
   line-height: 0.95;
   letter-spacing: -0.04em;
 }
 
+.hero-panel.compact .hero-copy h1 {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+}
+
 .hero-text,
 .screen-heading p,
-.hint-text,
+.panel-copy,
+.quick-focus-text,
+.editor-empty p,
+.editor-note,
 .history-row p,
 .amount-row p,
-.calculation-card p,
-.your-amount-card p {
+.quick-stat p,
+.calculation-card p {
   color: #566157;
 }
 
-.hero-text {
+.hero-text,
+.quick-focus-text {
   max-width: 640px;
-  margin-top: 12px;
-  font-size: 1.05rem;
+  margin-top: 10px;
 }
 
 .eyebrow,
@@ -72,10 +137,12 @@
 .step-strip,
 .toggle-row,
 .inline-actions,
-.pill-group {
+.hero-utility,
+.quick-focus-pills,
+.room-meta {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
 .step-strip {
@@ -84,20 +151,21 @@
 }
 
 .step-chip,
+.focus-pill,
 .status-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .step-chip {
   border: 1px solid rgba(108, 79, 50, 0.18);
   color: #6c6b5a;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .step-chip.active,
@@ -107,10 +175,10 @@
   border: 1px solid rgba(23, 70, 58, 0.18);
 }
 
-.screen-card,
-.room-banner,
-.panel {
-  padding: 28px;
+.focus-pill {
+  color: #6a5b3a;
+  background: rgba(255, 248, 224, 0.84);
+  border: 1px solid rgba(156, 127, 71, 0.16);
 }
 
 .screen-card {
@@ -118,7 +186,7 @@
 }
 
 .screen-heading {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .screen-heading h2 {
@@ -129,7 +197,7 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .field {
@@ -163,6 +231,12 @@
   transform: translateY(-1px);
 }
 
+.field input:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  background: rgba(236, 232, 223, 0.9);
+}
+
 .primary-button,
 .secondary-button,
 .toggle-button {
@@ -184,14 +258,6 @@
   box-shadow: 0 14px 28px rgba(45, 63, 51, 0.12);
 }
 
-.primary-button:disabled,
-.secondary-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
 .primary-button {
   color: #f7f6ef;
   background: linear-gradient(135deg, #245b48, #3f7b60);
@@ -200,7 +266,7 @@
 .secondary-button,
 .toggle-button {
   color: #244235;
-  background: rgba(240, 232, 214, 0.85);
+  background: rgba(240, 232, 214, 0.88);
   border: 1px solid rgba(108, 79, 50, 0.12);
 }
 
@@ -212,106 +278,423 @@
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
 }
 
-.room-banner {
+.dashboard-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.dashboard-brand p {
+  margin: 2px 0 0;
+  color: #566157;
+}
+
+.menu-button {
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(108, 79, 50, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 251, 245, 0.84);
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.menu-button span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: #244235;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  border: none;
+  background: rgba(34, 34, 30, 0.28);
+}
+
+.room-drawer {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  bottom: 14px;
+  z-index: 40;
+  width: min(340px, calc(100vw - 28px));
+  padding: 20px;
+  transform: translateX(calc(-100% - 20px));
+  transition: transform 0.22s ease;
+}
+
+.room-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
   display: flex;
   justify-content: space-between;
-  gap: 24px;
+  gap: 12px;
   align-items: flex-start;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.panel {
-  grid-column: span 6;
-}
-
-.accent-panel {
-  background:
-    radial-gradient(circle at top right, rgba(248, 193, 112, 0.34), transparent 35%),
-    linear-gradient(180deg, rgba(255, 250, 238, 0.95), rgba(243, 248, 241, 0.9));
-}
-
-.wide-panel {
-  grid-column: span 12;
-}
-
-.panel-header {
-  margin-bottom: 20px;
-}
-
-.panel-header h3 {
-  font-size: 1.6rem;
-}
-
-.two-column-form,
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.full-width {
-  grid-column: 1 / -1;
-}
-
-.big-number {
-  margin: 0;
-  color: #245b48;
-  font-family: Cambria, Georgia, serif;
-  font-size: clamp(2rem, 4vw, 3rem);
-}
-
-.summary-box,
-.calculation-card,
-.your-amount-card,
-.history-row,
-.amount-row {
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(63, 90, 74, 0.12);
-}
-
-.summary-box {
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.summary-box strong {
-  color: #253126;
-  font-size: 1.2rem;
-}
-
-.error-text {
-  margin: 0;
-  color: #9d3f2c;
-  font-weight: 700;
-}
-
-.calculation-card {
-  padding: 18px;
-  display: grid;
-  gap: 10px;
   margin-bottom: 16px;
 }
 
-.amount-list,
-.history-list {
+.drawer-room-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
-.amount-row,
-.history-row {
+.drawer-room-button {
+  border: 1px solid rgba(108, 79, 50, 0.14);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #244235;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drawer-room-button.active {
+  background: rgba(220, 238, 227, 0.82);
+  border-color: rgba(36, 91, 72, 0.22);
+}
+
+.drawer-room-button span {
+  color: #6b746b;
+  font-size: 0.9rem;
+}
+
+.full-width-button {
+  width: 100%;
+}
+
+.quick-focus-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(340px, 0.98fr);
+  gap: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(248, 193, 112, 0.28), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(163, 210, 181, 0.24), transparent 26%),
+    linear-gradient(180deg, rgba(255, 252, 245, 0.95), rgba(247, 243, 234, 0.92));
+}
+
+.quick-focus-single {
+  grid-template-columns: 1fr;
+}
+
+.quick-focus-pills {
+  margin-top: 18px;
+}
+
+.quick-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quick-toggle-button {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid rgba(36, 91, 72, 0.24);
+  border-radius: 30px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at top, rgba(214, 244, 225, 0.92), transparent 36%),
+    linear-gradient(180deg, #4f9d71 0%, #2f7b53 100%);
+  color: #f7f6ef;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 24px 48px rgba(78, 97, 78, 0.14);
+}
+
+.quick-toggle-button:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 28px 54px rgba(78, 97, 78, 0.16);
+}
+
+.quick-toggle-button.active {
+  color: #4f2a18;
+  border-color: rgba(180, 92, 61, 0.24);
+  background:
+    radial-gradient(circle at top, rgba(255, 240, 221, 0.78), transparent 34%),
+    linear-gradient(180deg, #ffd9b0 0%, #f2a169 100%);
+}
+
+.quick-toggle-top {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.quick-toggle-button strong {
+  font-family: Cambria, Georgia, serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  line-height: 1;
+}
+
+.quick-toggle-bottom {
+  max-width: 340px;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.quick-toggle-meta {
+  font-size: 0.96rem;
+  font-weight: 700;
+  opacity: 0.92;
+}
+
+.correction-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.quick-action-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quick-stat,
+.summary-box,
+.calendar-card,
+.editor-card,
+.calculation-card,
+.history-row,
+.amount-row {
+  border-radius: 20px;
+  border: 1px solid rgba(63, 90, 74, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.quick-stat,
+.summary-box,
+.calendar-card,
+.editor-card,
+.calculation-card {
+  padding: 18px;
+}
+
+.quick-stat strong,
+.summary-box strong {
+  display: block;
+  color: #263228;
+  font-size: 1.18rem;
+  margin-bottom: 6px;
+}
+
+.panel-header {
+  margin-bottom: 18px;
+}
+
+.panel-header.with-action {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.correction-layout,
+.dashboard-columns {
+  display: grid;
+  gap: 18px;
+}
+
+.correction-layout {
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
+  margin-top: 18px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.calendar-header p {
+  margin-top: 6px;
+  color: #596458;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-weekdays {
+  margin-bottom: 10px;
+}
+
+.weekday-chip {
+  text-align: center;
+  color: #8a5f3a;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.calendar-day {
+  min-height: 74px;
+  border: 1px solid rgba(108, 79, 50, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 10px;
+  color: #304538;
+  cursor: pointer;
+}
+
+.calendar-day:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(45, 63, 51, 0.08);
+}
+
+.calendar-day.recorded {
+  background: rgba(220, 238, 227, 0.8);
+  border-color: rgba(36, 91, 72, 0.18);
+}
+
+.calendar-day.remove-marked {
+  background: rgba(255, 229, 214, 0.84);
+  border-color: rgba(180, 92, 61, 0.22);
+}
+
+.calendar-day.selected {
+  color: #f7f6ef;
+  background: linear-gradient(180deg, #245b48 0%, #1c4536 100%);
+}
+
+.calendar-day.today {
+  outline: 2px solid rgba(196, 138, 88, 0.38);
+  outline-offset: 2px;
+}
+
+.calendar-day.muted {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calendar-day-number {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.calendar-day-caption {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.editor-card,
+.editor-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editor-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 248, 224, 0.68);
+}
+
+.selected-date-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 38px;
+}
+
+.selected-date-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(220, 238, 227, 0.82);
+  color: #244235;
+  font-weight: 700;
+}
+
+.remove-chip {
+  background: rgba(255, 229, 214, 0.88);
+  color: #9d3f2c;
+}
+
+.compact-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.dashboard-columns {
+  grid-template-columns: minmax(320px, 0.92fr) minmax(380px, 1.08fr);
+}
+
+.summary-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.triple-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.subsection-heading {
+  margin: 18px 0 12px;
+}
+
+.subsection-heading h4 {
+  margin: 0 0 4px;
+  color: #253126;
+  font-size: 1.05rem;
+}
+
+.subsection-heading p {
+  margin: 0;
+  color: #596458;
+}
+
+.compact-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.history-row,
+.amount-row {
   padding: 16px 18px;
   display: flex;
   justify-content: space-between;
@@ -319,9 +702,35 @@
   align-items: center;
 }
 
+.active-history,
 .amount-row.highlight {
   border-color: rgba(36, 91, 72, 0.28);
-  background: rgba(220, 238, 227, 0.72);
+  background: rgba(220, 238, 227, 0.76);
+}
+
+.settings-drawer {
+  margin: 16px 0;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 252, 245, 0.74);
+  border: 1px solid rgba(108, 79, 50, 0.12);
+}
+
+.two-column-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.amount-list,
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .amount-values {
@@ -332,66 +741,105 @@
   color: #49544a;
 }
 
-.your-amount-card {
-  margin-top: 16px;
-  padding: 20px;
+.error-text {
+  margin: 0;
+  color: #9d3f2c;
+  font-weight: 700;
 }
 
-.your-amount-card h3 {
-  font-size: 2rem;
-  margin: 0 0 8px;
+.reveal-panel {
+  animation: riseIn 0.2s ease;
 }
 
-.active-history {
-  border-color: rgba(36, 91, 72, 0.28);
-  background: rgba(230, 244, 237, 0.86);
-}
-
-@media (max-width: 960px) {
-  .app-shell {
-    width: min(100% - 20px, 1180px);
-    padding-top: 20px;
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
 
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1040px) {
+  .quick-focus-card,
+  .correction-layout,
+  .dashboard-columns,
+  .quick-action-status,
+  .triple-grid,
+  .correction-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
   .hero-panel,
-  .room-banner,
+  .compact-banner,
+  .panel-header.with-action,
+  .calendar-header,
+  .history-row,
   .amount-row,
-  .history-row {
+  .drawer-header {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .panel,
-  .wide-panel {
-    grid-column: span 12;
   }
 
   .step-strip {
     justify-content: flex-start;
   }
+
+  .amount-values {
+    text-align: left;
+  }
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    width: min(100% - 18px, 1220px);
+    padding-top: 16px;
+  }
+
   .hero-panel,
   .screen-card,
+  .quick-focus-card,
+  .correction-card,
   .room-banner,
-  .panel {
-    padding: 22px;
+  .panel,
+  .room-drawer {
+    padding: 20px;
     border-radius: 24px;
   }
 
   .two-column-form,
-  .summary-grid {
-    grid-template-columns: 1fr;
+  .calendar-weekdays,
+  .calendar-grid {
+    gap: 6px;
   }
 
+  .two-column-form,
   .inline-actions,
   .toggle-row,
-  .pill-group {
+  .hero-utility {
+    grid-template-columns: 1fr;
     flex-direction: column;
   }
 
-  .amount-values {
-    text-align: left;
+  .quick-toggle-button {
+    min-height: 200px;
+    padding: 18px;
+  }
+
+  .calendar-day {
+    min-height: 68px;
+    padding: 10px 8px;
+  }
+
+  .room-drawer {
+    top: 10px;
+    left: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
   }
 }

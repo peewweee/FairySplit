@@ -6,6 +6,8 @@ const MS_IN_MINUTE = 60 * MS_IN_SECOND
 const MS_IN_HOUR = 60 * MS_IN_MINUTE
 const MS_IN_DAY = 24 * MS_IN_HOUR
 
+const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
@@ -16,6 +18,16 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-PH', {
   day: 'numeric',
   hour: 'numeric',
   minute: '2-digit',
+})
+
+const shortDateFormatter = new Intl.DateTimeFormat('en-PH', {
+  month: 'short',
+  day: 'numeric',
+})
+
+const calendarTitleFormatter = new Intl.DateTimeFormat('en-PH', {
+  month: 'long',
+  year: 'numeric',
 })
 
 const initialSessions = [
@@ -39,12 +51,48 @@ const otherResidents = [
   { name: 'Mika', days: 8 },
 ]
 
-function formatDateTimeInput(date) {
-  const localDate = new Date(date)
-  const offset = localDate.getTimezoneOffset() * MS_IN_MINUTE
-  const normalized = new Date(localDate.getTime() - offset)
+const roomOptions = [
+  { name: 'Moonlight Dorm', code: 'FAIRY-204' },
+  { name: 'Clover Loft', code: 'PETAL-118' },
+  { name: 'Starlight Unit', code: 'GLOW-302' },
+]
 
-  return normalized.toISOString().slice(0, 16)
+function padNumber(value) {
+  return String(value).padStart(2, '0')
+}
+
+function toDateKey(date) {
+  return `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(
+    date.getDate(),
+  )}`
+}
+
+function getDateFromKey(dateKey) {
+  return new Date(`${dateKey}T00:00:00`)
+}
+
+function addDays(date, amount) {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + amount)
+  return nextDate
+}
+
+function startOfWeek(date) {
+  const weekStart = new Date(date)
+  weekStart.setHours(0, 0, 0, 0)
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+  return weekStart
+}
+
+function endOfWeek(date) {
+  return addDays(startOfWeek(date), 6)
+}
+
+function sortSessionsByStart(entries) {
+  return [...entries].sort(
+    (left, right) =>
+      new Date(right.start).getTime() - new Date(left.start).getTime(),
+  )
 }
 
 function formatDuration(ms, includeSeconds = false) {
@@ -67,12 +115,12 @@ function formatDuration(ms, includeSeconds = false) {
   return `${days}d ${hours}h ${minutes}m`
 }
 
-function formatStayDays(durationMs) {
-  return (durationMs / MS_IN_DAY).toFixed(2)
-}
-
 function formatDateTimeLabel(value) {
   return dateTimeFormatter.format(new Date(value))
+}
+
+function formatDateLabel(dateKey) {
+  return shortDateFormatter.format(getDateFromKey(dateKey))
 }
 
 function createSessionId() {
@@ -81,6 +129,111 @@ function createSessionId() {
   }
 
   return `stay-${Date.now()}`
+}
+
+function buildRecordedDateKeys(entries) {
+  const recordedDateKeys = new Set()
+
+  entries.forEach((entry) => {
+    let cursor = getDateFromKey(toDateKey(new Date(entry.start)))
+    const endTime = Math.max(
+      new Date(entry.start).getTime(),
+      new Date(entry.end).getTime() - 1,
+    )
+    const lastDay = getDateFromKey(toDateKey(new Date(endTime)))
+
+    while (cursor <= lastDay) {
+      recordedDateKeys.add(toDateKey(cursor))
+      cursor = addDays(cursor, 1)
+    }
+  })
+
+  return recordedDateKeys
+}
+
+function buildCalendarDays(
+  rangeStartKey,
+  rangeEndKey,
+  recordedDateKeys,
+  selectedDateKeys,
+  todayKey,
+) {
+  const calendarDays = []
+  let cursor = startOfWeek(getDateFromKey(rangeStartKey))
+  const lastDay = endOfWeek(getDateFromKey(rangeEndKey))
+  const selectedDateKeySet = new Set(selectedDateKeys)
+
+  while (cursor <= lastDay) {
+    const dateKey = toDateKey(cursor)
+
+    calendarDays.push({
+      dateKey,
+      dayNumber: cursor.getDate(),
+      hasRecorded: recordedDateKeys.has(dateKey),
+      isInRange: dateKey >= rangeStartKey && dateKey <= rangeEndKey,
+      isSelected: selectedDateKeySet.has(dateKey),
+      isToday: dateKey === todayKey,
+    })
+
+    cursor = addDays(cursor, 1)
+  }
+
+  return calendarDays
+}
+
+function subtractSelectedDatesFromSession(session, selectedRemovalDateKeys) {
+  if (selectedRemovalDateKeys.size === 0) {
+    return [session]
+  }
+
+  const sortedDateKeys = [...selectedRemovalDateKeys].sort()
+  let remainingSegments = [
+    {
+      start: new Date(session.start),
+      end: new Date(session.end),
+    },
+  ]
+
+  sortedDateKeys.forEach((dateKey) => {
+    const removalStart = getDateFromKey(dateKey)
+    const removalEnd = addDays(removalStart, 1)
+    const nextSegments = []
+
+    remainingSegments.forEach((segment) => {
+      if (removalEnd <= segment.start || removalStart >= segment.end) {
+        nextSegments.push(segment)
+        return
+      }
+
+      if (removalStart > segment.start) {
+        nextSegments.push({
+          start: new Date(segment.start),
+          end: new Date(removalStart),
+        })
+      }
+
+      if (removalEnd < segment.end) {
+        nextSegments.push({
+          start: new Date(removalEnd),
+          end: new Date(segment.end),
+        })
+      }
+    })
+
+    remainingSegments = nextSegments
+  })
+
+  return remainingSegments
+    .filter((segment) => segment.end > segment.start)
+    .map((segment, index) => ({
+      ...session,
+      id:
+        remainingSegments.length === 1 && index === 0
+          ? session.id
+          : createSessionId(),
+      start: segment.start.toISOString(),
+      end: segment.end.toISOString(),
+    }))
 }
 
 function App() {
@@ -95,16 +248,18 @@ function App() {
   const [alwaysOnAmount, setAlwaysOnAmount] = useState('1200')
   const [billStart, setBillStart] = useState('2026-03-01')
   const [billEnd, setBillEnd] = useState('2026-03-31')
-  const [sessions, setSessions] = useState(initialSessions)
+  const [sessions, setSessions] = useState(() => sortSessionsByStart(initialSessions))
   const [activeSessionStart, setActiveSessionStart] = useState(null)
   const [now, setNow] = useState(() => Date.now())
-  const [manualStart, setManualStart] = useState(() =>
-    formatDateTimeInput(new Date(Date.now() - 5 * MS_IN_HOUR)),
-  )
-  const [manualEnd, setManualEnd] = useState(() =>
-    formatDateTimeInput(new Date(Date.now() - 2 * MS_IN_HOUR)),
-  )
-  const [manualError, setManualError] = useState('')
+  const [showRoomMenu, setShowRoomMenu] = useState(false)
+  const [showCorrectionCalendar, setShowCorrectionCalendar] = useState(false)
+  const [selectedCorrectionDates, setSelectedCorrectionDates] = useState([])
+  const [selectedRemovalDates, setSelectedRemovalDates] = useState([])
+  const [correctionStartTime, setCorrectionStartTime] = useState('')
+  const [correctionEndTime, setCorrectionEndTime] = useState('')
+  const [correctionHours, setCorrectionHours] = useState('')
+  const [correctionError, setCorrectionError] = useState('')
+  const [showBillSettings, setShowBillSettings] = useState(false)
 
   useEffect(() => {
     if (!activeSessionStart) {
@@ -120,6 +275,22 @@ function App() {
 
   const displayName = userName || 'You'
   const currentRoomName = roomName.trim() || 'Moonlight Dorm'
+  const todayKey = toDateKey(new Date(now))
+  const rawBillStartKey = billStart || todayKey
+  const rawBillEndKey = billEnd || todayKey
+  const rangeStartKey =
+    rawBillStartKey <= rawBillEndKey ? rawBillStartKey : rawBillEndKey
+  const rangeEndKey =
+    rawBillStartKey <= rawBillEndKey ? rawBillEndKey : rawBillStartKey
+  const billPeriodLabel = `${formatDateLabel(rangeStartKey)} - ${formatDateLabel(
+    rangeEndKey,
+  )}`
+  const calendarTitle =
+    rangeStartKey.slice(0, 7) === rangeEndKey.slice(0, 7)
+      ? calendarTitleFormatter.format(getDateFromKey(rangeStartKey))
+      : `${calendarTitleFormatter.format(
+          getDateFromKey(rangeStartKey),
+        )} - ${calendarTitleFormatter.format(getDateFromKey(rangeEndKey))}`
   const parsedBillAmount = Number(billAmount) || 0
   const parsedAlwaysOnAmount = Math.min(
     Number(alwaysOnAmount) || 0,
@@ -140,7 +311,6 @@ function App() {
   const activeDurationMs = activeSessionStart
     ? Math.max(0, now - new Date(activeSessionStart).getTime())
     : 0
-
   const totalDurationMs = completedDurationMs + activeDurationMs
   const yourDays = totalDurationMs / MS_IN_DAY
   const participants = [{ name: displayName, days: yourDays }, ...otherResidents]
@@ -169,6 +339,46 @@ function App() {
   const yourRow =
     amountRows.find((participant) => participant.name === displayName) ??
     amountRows[0]
+  const latestRecordedSession = sessions[0] ?? null
+  const quickActionLabel = activeSessionStart ? 'Out' : 'In'
+  const hasSelectedCorrections = selectedCorrectionDates.length > 0
+  const hasSelectedRemovals = selectedRemovalDates.length > 0
+  const activeSessionEntry = activeSessionStart
+    ? {
+        start: activeSessionStart,
+        end: new Date(now).toISOString(),
+      }
+    : null
+  const recordedDateKeys = buildRecordedDateKeys(
+    activeSessionEntry ? [...sessions, activeSessionEntry] : sessions,
+  )
+  const calendarDays = buildCalendarDays(
+    rangeStartKey,
+    rangeEndKey,
+    recordedDateKeys,
+    selectedCorrectionDates,
+    todayKey,
+  )
+  const visibleSessions = sessions.slice(0, 5)
+  const latestActivityDuration = latestRecordedSession
+    ? formatDuration(
+        new Date(latestRecordedSession.end).getTime() -
+          new Date(latestRecordedSession.start).getTime(),
+      )
+    : null
+  const activityLineOne = activeSessionStart
+    ? `Inside since ${formatDateTimeLabel(activeSessionStart)}`
+    : latestRecordedSession
+      ? `Last out ${formatDateTimeLabel(latestRecordedSession.end)}`
+      : 'No stay logged yet'
+  const activityLineTwo = activeSessionStart
+    ? formatDuration(activeDurationMs, true)
+    : latestActivityDuration ?? 'Timer ready'
+  const correctionHelperText = hasSelectedCorrections
+    ? 'Leave the fields blank to save each selected date as 24 hours.'
+    : hasSelectedRemovals
+      ? 'Tap save to remove the selected logged dates.'
+      : 'Tap an empty date to log it, or a logged date to remove it.'
 
   function handleNameSubmit(event) {
     event.preventDefault()
@@ -218,73 +428,242 @@ function App() {
       source: 'timer',
     }
 
-    setSessions((currentSessions) => [finishedSession, ...currentSessions])
+    setSessions((currentSessions) =>
+      sortSessionsByStart([finishedSession, ...currentSessions]),
+    )
     setActiveSessionStart(null)
   }
 
-  function handleManualSessionSubmit(event) {
+  function handleQuickToggle() {
+    if (activeSessionStart) {
+      handleExitDorm()
+      return
+    }
+
+    handleEnterDorm()
+  }
+
+  function handleSelectCorrectionDate(dateKey) {
+    const selectedDay = calendarDays.find((day) => day.dateKey === dateKey)
+
+    if (!selectedDay || !selectedDay.isInRange) {
+      return
+    }
+
+    if (selectedDay.hasRecorded) {
+      setSelectedRemovalDates((currentDates) =>
+        currentDates.includes(dateKey)
+          ? currentDates.filter((currentDate) => currentDate !== dateKey)
+          : [...currentDates, dateKey],
+      )
+      setSelectedCorrectionDates((currentDates) =>
+        currentDates.filter((currentDate) => currentDate !== dateKey),
+      )
+    } else {
+      setSelectedCorrectionDates((currentDates) =>
+        currentDates.includes(dateKey)
+          ? currentDates.filter((currentDate) => currentDate !== dateKey)
+          : [...currentDates, dateKey],
+      )
+      setSelectedRemovalDates((currentDates) =>
+        currentDates.filter((currentDate) => currentDate !== dateKey),
+      )
+    }
+
+    setCorrectionError('')
+  }
+
+  function handleCorrectionSave(event) {
     event.preventDefault()
 
-    const startTime = new Date(manualStart)
-    const endTime = new Date(manualEnd)
-
-    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
-      setManualError('Choose both a start and end date first.')
+    if (!hasSelectedCorrections && !hasSelectedRemovals) {
+      setCorrectionError('Select one or more dates first.')
       return
     }
 
-    if (endTime <= startTime) {
-      setManualError('End time must be later than start time.')
+    if (
+      hasSelectedCorrections &&
+      ((correctionStartTime && !correctionEndTime) ||
+        (!correctionStartTime && correctionEndTime))
+    ) {
+      setCorrectionError('Enter both time in and time out, or leave them blank.')
       return
     }
 
-    setSessions((currentSessions) => [
-      {
-        id: createSessionId(),
-        start: startTime.toISOString(),
-        end: endTime.toISOString(),
-        source: 'manual',
-      },
-      ...currentSessions,
-    ])
-    setManualError('')
-    setManualStart(formatDateTimeInput(startTime))
-    setManualEnd(formatDateTimeInput(new Date(endTime.getTime() + MS_IN_HOUR)))
+    if (hasSelectedCorrections && correctionHours) {
+      const parsedHours = Number(correctionHours)
+
+      if (Number.isNaN(parsedHours) || parsedHours <= 0) {
+        setCorrectionError('Hours stayed must be more than 0.')
+        return
+      }
+    }
+
+    setSessions((currentSessions) => {
+      const selectedDateSet = new Set(selectedCorrectionDates)
+      const selectedRemovalSet = new Set(selectedRemovalDates)
+      const sessionsWithoutRemovedDates = currentSessions.flatMap((session) =>
+        subtractSelectedDatesFromSession(session, selectedRemovalSet),
+      )
+      const sessionsWithoutSelectedManualDates = sessionsWithoutRemovedDates.filter(
+        (session) =>
+          !(
+            session.source === 'manual' &&
+            selectedDateSet.has(toDateKey(new Date(session.start)))
+          ),
+      )
+      const addedSessions = selectedCorrectionDates.map((dateKey) => {
+        const startDate = new Date(`${dateKey}T00:00:00`)
+        let endDate = addDays(startDate, 1)
+
+        if (correctionHours) {
+          const parsedHours = Number(correctionHours)
+          const safeHours = Math.min(parsedHours, 24)
+          endDate = new Date(startDate.getTime() + safeHours * MS_IN_HOUR)
+        } else if (correctionStartTime && correctionEndTime) {
+          const customStart = new Date(`${dateKey}T${correctionStartTime}:00`)
+          let customEnd = new Date(`${dateKey}T${correctionEndTime}:00`)
+
+          if (customEnd <= customStart) {
+            customEnd = addDays(customEnd, 1)
+          }
+
+          return {
+            id: createSessionId(),
+            start: customStart.toISOString(),
+            end: customEnd.toISOString(),
+            source: 'manual',
+          }
+        }
+
+        return {
+          id: createSessionId(),
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          source: 'manual',
+        }
+      })
+
+      return sortSessionsByStart([
+        ...addedSessions,
+        ...sessionsWithoutSelectedManualDates,
+      ])
+    })
+
+    setCorrectionError('')
+    setSelectedCorrectionDates([])
+    setSelectedRemovalDates([])
+    setCorrectionStartTime('')
+    setCorrectionEndTime('')
+    setCorrectionHours('')
   }
 
   return (
     <main className="app-shell">
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <p className="eyebrow">Phase 1 frontend prototype</p>
-          <h1>FairySplit</h1>
-          <p className="hero-text">
-            A shared expense app for dorms or houses where bills are split by
-            how long each person actually stayed inside.
-          </p>
-        </div>
-        <div className="step-strip" aria-label="Project flow">
-          <span className={step === 'identity' ? 'step-chip active' : 'step-chip'}>
-            1. Name
-          </span>
-          <span className={step === 'room' ? 'step-chip active' : 'step-chip'}>
-            2. Room
-          </span>
-          <span className={step === 'dashboard' ? 'step-chip active' : 'step-chip'}>
-            3. Dashboard
-          </span>
-        </div>
-      </section>
+      {step !== 'dashboard' ? (
+        <section className="hero-panel">
+          <div className="hero-copy">
+            <h1>FairySplit</h1>
+            <p className="hero-text">Split dorm bills by actual stay time.</p>
+          </div>
+
+          <div className="step-strip" aria-label="Project flow">
+            <span className={step === 'identity' ? 'step-chip active' : 'step-chip'}>
+              Name
+            </span>
+            <span className={step === 'room' ? 'step-chip active' : 'step-chip'}>
+              Room
+            </span>
+            <span className={step === 'dashboard' ? 'step-chip active' : 'step-chip'}>
+              Dashboard
+            </span>
+          </div>
+        </section>
+      ) : (
+        <>
+          <div className="dashboard-topbar">
+            <button
+              className="menu-button"
+              type="button"
+              aria-label="Open room menu"
+              onClick={() => setShowRoomMenu(true)}
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+
+            <div className="dashboard-brand">
+              <h2>FairySplit</h2>
+              <p>{displayName}</p>
+            </div>
+          </div>
+
+          {showRoomMenu ? (
+            <button
+              className="drawer-backdrop"
+              type="button"
+              aria-label="Close room menu"
+              onClick={() => setShowRoomMenu(false)}
+            ></button>
+          ) : null}
+
+          <aside className={showRoomMenu ? 'room-drawer open' : 'room-drawer'}>
+            <div className="drawer-header">
+              <div>
+                <p className="section-label">Rooms</p>
+                <h3>Choose a room</h3>
+              </div>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setShowRoomMenu(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="drawer-room-list">
+              {roomOptions.map((roomOption) => (
+                <button
+                  className={
+                    roomOption.name === currentRoomName
+                      ? 'drawer-room-button active'
+                      : 'drawer-room-button'
+                  }
+                  key={roomOption.code}
+                  type="button"
+                  onClick={() => {
+                    setRoomName(roomOption.name)
+                    setRoomCode(roomOption.code)
+                    setShowRoomMenu(false)
+                  }}
+                >
+                  <strong>{roomOption.name}</strong>
+                  <span>{roomOption.code}</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="secondary-button full-width-button"
+              type="button"
+              onClick={() => {
+                setShowRoomMenu(false)
+                setStep('room')
+              }}
+            >
+              Add or edit room
+            </button>
+          </aside>
+        </>
+      )}
 
       {step === 'identity' && (
         <section className="screen-card">
           <div className="screen-heading">
-            <p className="section-label">First screen</p>
-            <h2>Who is using FairySplit?</h2>
-            <p>
-              For now we only ask for a display name. Later, if we add real
-              accounts, this can become a login or sign-up page.
-            </p>
+            <h2>Your name</h2>
+            <p>Enter the name your roommates will recognize.</p>
           </div>
 
           <form className="stack" onSubmit={handleNameSubmit}>
@@ -308,12 +687,8 @@ function App() {
       {step === 'room' && (
         <section className="screen-card">
           <div className="screen-heading">
-            <p className="section-label">Second screen</p>
-            <h2>Create a room or join one</h2>
-            <p>
-              This mirrors your intended user flow. A user either creates a
-              shared space or joins an existing one through a room code.
-            </p>
+            <h2>Choose a room</h2>
+            <p>Create a new room or join with a code.</p>
           </div>
 
           <form className="stack" onSubmit={handleRoomSubmit}>
@@ -389,194 +764,317 @@ function App() {
 
       {step === 'dashboard' && (
         <section className="dashboard">
-          <div className="room-banner">
+          <article className="quick-focus-card quick-focus-single">
+            <button
+              className={
+                activeSessionStart
+                  ? 'quick-toggle-button active'
+                  : 'quick-toggle-button'
+              }
+              type="button"
+              onClick={handleQuickToggle}
+              aria-label={quickActionLabel}
+            >
+              <strong>{quickActionLabel}</strong>
+              <span className="quick-toggle-bottom">{activityLineOne}</span>
+              <span className="quick-toggle-meta">{activityLineTwo}</span>
+            </button>
+          </article>
+
+          <article className="correction-card">
+            <div className="panel-header with-action">
+              <div>
+                <h3>Correction calendar</h3>
+              </div>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() =>
+                  setShowCorrectionCalendar((currentValue) => !currentValue)
+                }
+              >
+                {showCorrectionCalendar
+                  ? 'Hide correction calendar'
+                  : 'Open correction calendar'}
+              </button>
+            </div>
+
+            {showCorrectionCalendar ? (
+              <>
+                {hasSelectedCorrections ? (
+                  <div className="correction-toolbar reveal-panel">
+                    <label className="field">
+                      <span>Time in</span>
+                      <input
+                        type="time"
+                        value={correctionStartTime}
+                        disabled={Boolean(correctionHours)}
+                        onChange={(event) => setCorrectionStartTime(event.target.value)}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>Time out</span>
+                      <input
+                        type="time"
+                        value={correctionEndTime}
+                        disabled={Boolean(correctionHours)}
+                        onChange={(event) => setCorrectionEndTime(event.target.value)}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>Hours stayed</span>
+                      <input
+                        type="number"
+                        min="0.5"
+                        max="24"
+                        step="0.5"
+                        value={correctionHours}
+                        disabled={Boolean(correctionStartTime || correctionEndTime)}
+                        onChange={(event) => setCorrectionHours(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+
+                <div className="correction-layout reveal-panel">
+                  <div className="calendar-card">
+                    <div className="calendar-header">
+                      <div>
+                        <strong>{calendarTitle}</strong>
+                        <p>{correctionHelperText}</p>
+                      </div>
+                    </div>
+
+                    <div className="calendar-weekdays">
+                      {weekdayLabels.map((dayLabel) => (
+                        <span className="weekday-chip" key={dayLabel}>
+                          {dayLabel}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="calendar-grid">
+                      {calendarDays.map((day) => (
+                        <button
+                          className={
+                            day.isInRange
+                              ? `calendar-day${day.hasRecorded ? ' recorded' : ''}${
+                                  day.isSelected ? ' selected' : ''
+                                }${
+                                  selectedRemovalDates.includes(day.dateKey)
+                                    ? ' remove-marked'
+                                    : ''
+                                }${day.isToday ? ' today' : ''}`
+                              : 'calendar-day muted'
+                          }
+                          disabled={!day.isInRange}
+                          key={day.dateKey}
+                          type="button"
+                          onClick={() => handleSelectCorrectionDate(day.dateKey)}
+                        >
+                          <span className="calendar-day-number">{day.dayNumber}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="editor-card">
+                    <p className="section-label">Selected dates</p>
+                    <h3>
+                      {!hasSelectedCorrections && !hasSelectedRemovals
+                        ? 'Nothing selected'
+                        : `${selectedCorrectionDates.length} add / ${selectedRemovalDates.length} remove`}
+                    </h3>
+
+                    <div className="selected-date-list">
+                      {hasSelectedCorrections || hasSelectedRemovals ? (
+                        <>
+                          {selectedCorrectionDates
+                            .slice()
+                            .sort()
+                            .map((dateKey) => (
+                              <span className="selected-date-chip" key={dateKey}>
+                                {formatDateLabel(dateKey)}
+                              </span>
+                            ))}
+                          {selectedRemovalDates
+                            .slice()
+                            .sort()
+                            .map((dateKey) => (
+                              <span
+                                className="selected-date-chip remove-chip"
+                                key={dateKey}
+                              >
+                                {formatDateLabel(dateKey)}
+                              </span>
+                            ))}
+                        </>
+                      ) : (
+                        <p className="editor-note">No pending calendar changes.</p>
+                      )}
+                    </div>
+
+                    {correctionError ? (
+                      <p className="error-text">{correctionError}</p>
+                    ) : null}
+
+                    <form className="stack" onSubmit={handleCorrectionSave}>
+                      <button
+                        className="primary-button"
+                        type="submit"
+                        disabled={!hasSelectedCorrections && !hasSelectedRemovals}
+                      >
+                        Save calendar changes
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </article>
+
+          <div className="room-banner compact-banner">
             <div>
-              <p className="section-label">Room overview</p>
               <h2>{currentRoomName}</h2>
               <p>
                 Code: <strong>{roomCode || 'Not set yet'}</strong>
               </p>
             </div>
-            <div className="pill-group">
-              <span className="status-pill">
-                {activeSessionStart ? 'Inside dorm' : 'Outside dorm'}
-              </span>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setStep('room')}
-              >
-                Edit room
-              </button>
+            <div className="room-meta">
+              <span className="focus-pill">Bill cycle {billPeriodLabel}</span>
             </div>
           </div>
 
-          <div className="dashboard-grid">
+          <div className="dashboard-columns">
             <article className="panel">
               <div className="panel-header">
-                <p className="section-label">Bill settings</p>
-                <h3>{billName}</h3>
+                <h3>Recent logs</h3>
               </div>
 
-              <div className="two-column-form">
-                <label className="field">
-                  <span>Bill name</span>
-                  <input
-                    type="text"
-                    value={billName}
-                    onChange={(event) => setBillName(event.target.value)}
-                  />
-                </label>
+              <div className="history-list compact-scroll">
+                {activeSessionStart ? (
+                  <div className="history-row active-history">
+                    <div>
+                      <strong>Active stay</strong>
+                      <p>Started {formatDateTimeLabel(activeSessionStart)}</p>
+                    </div>
+                    <strong>{formatDuration(activeDurationMs, true)}</strong>
+                  </div>
+                ) : null}
 
-                <label className="field">
-                  <span>Total bill amount</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={billAmount}
-                    onChange={(event) => setBillAmount(event.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Billing start date</span>
-                  <input
-                    type="date"
-                    value={billStart}
-                    onChange={(event) => setBillStart(event.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Billing end date</span>
-                  <input
-                    type="date"
-                    value={billEnd}
-                    onChange={(event) => setBillEnd(event.target.value)}
-                  />
-                </label>
-
-                <label className="field full-width">
-                  <span>Always-on shared cost</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={alwaysOnAmount}
-                    onChange={(event) => setAlwaysOnAmount(event.target.value)}
-                  />
-                </label>
+                {visibleSessions.map((session) => (
+                  <div className="history-row" key={session.id}>
+                    <div>
+                      <strong>
+                        {session.source === 'manual'
+                          ? 'Manual correction'
+                          : 'Timer session'}
+                      </strong>
+                      <p>
+                        {formatDateTimeLabel(session.start)} to{' '}
+                        {formatDateTimeLabel(session.end)}
+                      </p>
+                    </div>
+                    <strong>
+                      {formatDuration(
+                        new Date(session.end).getTime() -
+                          new Date(session.start).getTime(),
+                      )}
+                    </strong>
+                  </div>
+                ))}
               </div>
-
-              <p className="hint-text">
-                Example: refrigerator cost can be shared equally, while the rest
-                of the bill is split by days stayed.
-              </p>
             </article>
 
-            <article className="panel accent-panel">
-              <div className="panel-header">
-                <p className="section-label">Time in and out</p>
-                <h3>Stay tracker</h3>
-              </div>
-
-              <p className="big-number">
-                {activeSessionStart
-                  ? formatDuration(activeDurationMs, true)
-                  : 'Timer ready'}
-              </p>
-              <p className="hint-text">
-                {activeSessionStart
-                  ? `${displayName} is currently inside the dorm.`
-                  : 'Press enter when you arrive, and exit when you leave.'}
-              </p>
-
-              <div className="inline-actions">
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={handleEnterDorm}
-                  disabled={Boolean(activeSessionStart)}
-                >
-                  Time in
-                </button>
+            <article className="panel">
+              <div className="panel-header with-action">
+                <div>
+                  <h3>{billName}</h3>
+                </div>
                 <button
                   className="secondary-button"
                   type="button"
-                  onClick={handleExitDorm}
-                  disabled={!activeSessionStart}
+                  onClick={() => setShowBillSettings((currentValue) => !currentValue)}
                 >
-                  Time out
+                  {showBillSettings ? 'Hide bill settings' : 'Edit bill settings'}
                 </button>
               </div>
-            </article>
 
-            <article className="panel">
-              <div className="panel-header">
-                <p className="section-label">Your total stay</p>
-                <h3>Usage summary</h3>
-              </div>
-
-              <div className="summary-grid">
+              <div className="summary-grid triple-grid">
                 <div className="summary-box">
-                  <span className="summary-label">Total time inside</span>
-                  <strong>{formatDuration(totalDurationMs)}</strong>
+                  <span className="summary-label">Billing period</span>
+                  <strong>{billPeriodLabel}</strong>
                 </div>
                 <div className="summary-box">
-                  <span className="summary-label">Total days stayed</span>
-                  <strong>{formatStayDays(totalDurationMs)} days</strong>
+                  <span className="summary-label">Total bill</span>
+                  <strong>{currencyFormatter.format(parsedBillAmount)}</strong>
+                </div>
+                <div className="summary-box">
+                  <span className="summary-label">Your estimate</span>
+                  <strong>{currencyFormatter.format(yourRow.totalShare)}</strong>
                 </div>
               </div>
 
-              <p className="hint-text">
-                FairySplit converts tracked time into stay-days, then uses that
-                value for fair billing.
-              </p>
-            </article>
+              {showBillSettings ? (
+                <div className="settings-drawer reveal-panel">
+                  <div className="two-column-form">
+                    <label className="field">
+                      <span>Bill name</span>
+                      <input
+                        type="text"
+                        value={billName}
+                        onChange={(event) => setBillName(event.target.value)}
+                      />
+                    </label>
 
-            <article className="panel">
-              <div className="panel-header">
-                <p className="section-label">Forgot to time in/out?</p>
-                <h3>Add a manual stay record</h3>
-              </div>
+                    <label className="field">
+                      <span>Total bill amount</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={billAmount}
+                        onChange={(event) => setBillAmount(event.target.value)}
+                      />
+                    </label>
 
-              <form className="stack" onSubmit={handleManualSessionSubmit}>
-                <label className="field">
-                  <span>Start</span>
-                  <input
-                    type="datetime-local"
-                    value={manualStart}
-                    onChange={(event) => setManualStart(event.target.value)}
-                  />
-                </label>
+                    <label className="field">
+                      <span>Billing start date</span>
+                      <input
+                        type="date"
+                        value={billStart}
+                        onChange={(event) => setBillStart(event.target.value)}
+                      />
+                    </label>
 
-                <label className="field">
-                  <span>End</span>
-                  <input
-                    type="datetime-local"
-                    value={manualEnd}
-                    onChange={(event) => setManualEnd(event.target.value)}
-                  />
-                </label>
+                    <label className="field">
+                      <span>Billing end date</span>
+                      <input
+                        type="date"
+                        value={billEnd}
+                        onChange={(event) => setBillEnd(event.target.value)}
+                      />
+                    </label>
 
-                {manualError ? <p className="error-text">{manualError}</p> : null}
+                    <label className="field full-width">
+                      <span>Always-on shared cost</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={alwaysOnAmount}
+                        onChange={(event) => setAlwaysOnAmount(event.target.value)}
+                      />
+                    </label>
+                  </div>
 
-                <button className="primary-button" type="submit">
-                  Save manual record
-                </button>
-              </form>
-            </article>
-
-            <article className="panel wide-panel">
-              <div className="panel-header">
-                <p className="section-label">Transparency</p>
-                <h3>Current bill breakdown</h3>
-              </div>
+                  <p className="hint-text">
+                    Always-on costs are shared equally.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="calculation-card">
-                <p>
-                  Billing period: <strong>{billStart}</strong> to{' '}
-                  <strong>{billEnd}</strong>
-                </p>
                 <p>
                   Stay-based amount:{' '}
                   <strong>{currencyFormatter.format(sharedByUsageAmount)}</strong>
@@ -617,58 +1115,6 @@ function App() {
                         Total: {currencyFormatter.format(participant.totalShare)}
                       </strong>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="your-amount-card">
-                <p className="section-label">Your current estimate</p>
-                <h3>{currencyFormatter.format(yourRow.totalShare)}</h3>
-                <p>
-                  Formula: ({formatStayDays(totalDurationMs)} /{' '}
-                  {totalDaysStayed.toFixed(2)}) x{' '}
-                  {currencyFormatter.format(sharedByUsageAmount)} +{' '}
-                  {currencyFormatter.format(alwaysOnShare)}
-                </p>
-              </div>
-            </article>
-
-            <article className="panel wide-panel">
-              <div className="panel-header">
-                <p className="section-label">Stay history</p>
-                <h3>Recent records</h3>
-              </div>
-
-              <div className="history-list">
-                {activeSessionStart ? (
-                  <div className="history-row active-history">
-                    <div>
-                      <strong>Active stay</strong>
-                      <p>Started {formatDateTimeLabel(activeSessionStart)}</p>
-                    </div>
-                    <strong>{formatDuration(activeDurationMs, true)}</strong>
-                  </div>
-                ) : null}
-
-                {sessions.map((session) => (
-                  <div className="history-row" key={session.id}>
-                    <div>
-                      <strong>
-                        {session.source === 'manual'
-                          ? 'Manual correction'
-                          : 'Timer session'}
-                      </strong>
-                      <p>
-                        {formatDateTimeLabel(session.start)} to{' '}
-                        {formatDateTimeLabel(session.end)}
-                      </p>
-                    </div>
-                    <strong>
-                      {formatDuration(
-                        new Date(session.end).getTime() -
-                          new Date(session.start).getTime(),
-                      )}
-                    </strong>
                   </div>
                 ))}
               </div>
