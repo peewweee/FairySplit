@@ -1,79 +1,103 @@
-````md
 # FairySplit Project Documentation
 
-## Project Context
+## Project Overview
 
-`FairySplit` is a shared-expense app for dorms, apartments, or houses where bills should be split based on how long each person actually stayed inside the shared space, not just divided equally.
+**FairySplit** is a web application that helps roommates fairly split shared expenses based on how long each person actually stayed in a shared living space.
 
-The main idea is:
+Unlike traditional bill-splitting apps that divide expenses equally, FairySplit automatically calculates each person's share using recorded stay durations within a bill's billing period.
 
-- Each room has members.
-- Each member logs when they go **In** and **Out**.
-- The app turns those logs into stay duration.
-- Each bill has its own date range.
-- Each person's share is based on their recorded stay time during that bill period.
-- Each bill can have its own participants because not every person always shares every bill.
+The goal is to replace manual tracking with one simple habit:
 
-The specific real-life problem it solves is the one you described: instead of manually listing days stayed in the dorm, users should mostly just open the app and tap one button quickly when entering or leaving.
+> **Open the app and tap In when entering, and Out when leaving.**
+
+---
+
+# Problem Statement
+
+People living in dorms, apartments, or shared houses often split utility bills equally even when everyone stays for different lengths of time.
+
+A common workaround is manually counting how many days each person stayed during a billing period. This process is repetitive, time-consuming, and prone to mistakes.
+
+FairySplit solves this problem by allowing users to quickly record when they enter and leave the shared space. The application then automatically computes each member's bill share using their recorded stay duration.
+
+---
+
+# Core Concept
+
+The main workflow is simple:
+
+- Each room contains multiple members.
+- Members record when they go **In** and **Out**.
+- The app converts those records into stay durations.
+- Each bill has its own billing period.
+- Bills may include different participants.
+- Each participant pays according to the amount of time they stayed during that billing period.
 
 ---
 
 # Current Technical State
 
-As of **April 1, 2026**, this repository is currently a **frontend-only prototype**.
+As of **April 1, 2026**, this repository is a **frontend-only web application prototype**.
 
-### What exists right now
+## Current Technology
 
-- React + Vite frontend
-- Custom CSS styling in `App.css` and `index.css`
-- Local/in-memory state only
-- No real backend yet
-- No MySQL yet
-- No Spring Boot yet
-- No real authentication yet
-- No persistent saving yet
+- React
+- Vite
+- JavaScript
+- CSS
+- Browser localStorage
+- In-memory application state
 
-The app already demonstrates the product behavior and UI flow, but it is not yet connected to a real server or database.
+## Current Limitations
+
+The application currently does **not** include:
+
+- Backend server
+- Database
+- User accounts
+- Authentication
+- Persistent cloud storage
+- Multi-user synchronization
+
+The prototype focuses on validating the user experience, application flow, and billing logic before introducing backend infrastructure.
 
 ---
 
-# Why This Project Makes Sense
+# Why This Project Exists
 
-This project is not just a bill splitter. It combines:
+FairySplit is more than a bill-splitting application.
+
+It combines several systems into one workflow:
 
 - Time tracking
-- Room/member management
-- Bill participation rules
-- Date-range-based calculations
+- Room management
+- Member management
+- Stay session tracking
+- Bill participation
+- Date-range calculations
 - Historical records
-- Transparent cost breakdowns
+- Transparent bill computation
 
-That is exactly why a Java backend will make sense later:
-
-- Strong domain modeling for rooms, bills, members, and stay logs
-- Clear validation rules
-- Reliable calculation logic
-- Good structure for REST APIs
-- Good fit for persistence, reporting, and history
+Together, these features eliminate manual calculations while making bill sharing more accurate and transparent.
 
 ---
 
 # Core Business Logic
 
-The main billing rule is:
+For every bill:
 
-1. Get each person's total stay duration inside the bill date range.
-2. Add all joined members' stay durations.
-3. Divide one member's duration by the total duration.
-4. Multiply that ratio by the total bill amount.
+1. Calculate each participant's total stay duration within the bill period.
+2. Add the stay durations of every participating member.
+3. Compute each participant's percentage of the total stay duration.
+4. Multiply that percentage by the total bill amount.
 
-### Example
+## Example
 
 - Bill amount = `PHP 6,000`
 - You stayed `20 days`
 - Person B stayed `15 days`
 - Person C stayed `10 days`
-- Total = `45 days`
+- Total stay duration = `45 days`
 
 Your share:
 
@@ -81,11 +105,11 @@ Your share:
 20 / 45 × 6000
 ```
 
-In the current prototype:
+Current prototype behavior:
 
-- Your stay time is computed from actual session logs.
-- Other roommates currently use mock/default sample values.
-- Bill participation can differ per bill.
+- The current user's stay duration is calculated from actual recorded sessions.
+- Sample roommates currently use placeholder values.
+- Each bill can have different participants.
 
 ---
 
@@ -93,72 +117,70 @@ In the current prototype:
 
 ## 1. Landing / Room Entry Flow
 
-The app starts at **Choose a room**.
+The application starts on **Choose a Room**.
 
-Users can choose between:
+Users can:
 
-- Create room
-- Join room
+- Create a room
+- Join a room
 
-The user enters a display name for that room.
+Each user provides a display name.
 
 ### Create Room
 
-User sets:
+Requires:
 
 - Room name
 - Invite code
 
 ### Join Room
 
-User enters:
+Requires:
 
 - Room code
 
-After submission, the user goes to the room dashboard.
+After submission, the user enters the room dashboard.
 
 ---
 
 ## 2. Room Dashboard
 
-The main room page shows:
+Displays:
 
 - Room name
 - Room code
-- Main **In/Out** action
-- Manual date input
-- Bills section
+- Main In/Out button
+- Manual stay editor
+- Bills
 - Recent logs
 
-Additional behaviors:
+Additional functionality:
 
-- Room code is copyable.
-- Tapping the room code provides quick copy feedback.
+- Copy room code
+- Visual copy confirmation
 
 ---
 
-## 3. Main Time In / Out System
+## 3. Main In / Out System
 
-The most important action in the app is the large **In / Out** button.
+The primary interaction is the large **In / Out** button.
 
-If the user is currently outside:
+If currently outside:
 
-- Button shows **In**
-- Tapping it starts a stay session
+- Button displays **In**
+- Starts a stay session
 
-If the user is currently inside:
+If currently inside:
 
-- Button shows **Out**
-- Tapping it ends the stay session
+- Button displays **Out**
+- Ends the stay session
 
-While active, the button displays:
+During an active session:
 
-- When the stay started
-- A live running timer
+- Start time is displayed
+- Live timer updates continuously
 
-The current live timer only shows elapsed time within the current day, not total accumulated multi-day time.
-
-When inactive, the button shows:
+When inactive:
 
 - Last exit time
 - Last recorded stay duration
@@ -167,7 +189,7 @@ When inactive, the button shows:
 
 ## 4. Stay Session Tracking
 
-Every completed stay becomes a session containing:
+Each completed stay stores:
 
 - Unique ID
 - Start datetime
@@ -181,321 +203,438 @@ Current source types:
 
 Sessions are sorted newest first.
 
-Recent sessions appear in the **Recent Logs** section.
-
 ---
 
-## 5. Manual Input of Dates
+## 5. Manual Date Input
 
-Manual input is hidden inside an accordion below the main In/Out system.
+Manual editing is available through an accordion.
 
-Purpose:
+Used for:
 
-- Missed logs
+- Missed entries
 - Corrections
 
-Users tap dates on the calendar to add or remove stay records.
+Users can add or remove stay dates.
 
-The accordion closes automatically after saving.
+The accordion automatically closes after saving.
 
 ---
 
-## 6. Scrollable Multi-Month Calendar
+## 6. Multi-Month Calendar
 
-The calendar is not limited to one month.
+The calendar scrolls across multiple months.
 
-It scrolls across months like a real calendar.
-
-Visible months are based on:
+Displayed months depend on:
 
 - Current date
-- Recorded sessions
+- Existing stay sessions
 - Bill date ranges
 
-This supports overlapping billing periods such as:
-
-`February 7 → March 8`
+Supports billing periods that span multiple months.
 
 ---
 
-## 7. Calendar Date Behaviors
-
-Empty dates can be selected to add a stay.
-
-Already logged dates can be tapped again to mark them for removal.
-
-Logged days can therefore be unlogged.
+## 7. Calendar Date States
 
 Dates visually indicate:
 
-- Recorded
+- Recorded stay
 - Selected
-- Marked for removal
+- Pending removal
 - Today
+
+Logged dates can also be unlogged.
 
 ---
 
 ## 8. Per-Date Manual Editing
 
-Selected add-dates appear in an editor above the calendar.
+Each selected date can use one of three input modes:
 
-Each selected date can be edited individually.
+### 24 Hours
 
-Available modes:
+Records an entire day.
 
-- `24h`
-- `Time in/out`
-- `Hours`
+### Time In / Out
 
-### 24h
-
-Logs a full 24-hour stay.
-
-### Time in/out
-
-User enters:
+Users provide:
 
 - Start time
 - End time
 
-If the end time is earlier than the start time, it is treated as overnight into the next day.
+Overnight sessions are automatically handled.
 
 ### Hours
 
-User enters a numeric number of hours stayed.
+Users enter a total number of hours.
 
 Validation:
 
-- Time range requires both start and end.
-- Hours must be greater than `0` and at most `24`.
+- Both start and end time required
+- Hours must be between `0` and `24`
 
 ---
 
-## 9. Manual Removal of Logged Dates
+## 9. Manual Removal
 
-Logged dates can be marked for removal.
+Removing logged dates subtracts those dates from existing sessions.
 
-On save:
-
-- Selected dates are subtracted from existing sessions.
-
-If removing only part of a multi-day session, the session is split correctly instead of deleting the entire session.
+Partial removals correctly split multi-day sessions.
 
 ---
 
-## 10. Selected-Date Editor Container
+## 10. Scrollable Date Editor
 
-The selected-date editor is scrollable.
-
-This prevents the manual input section from becoming too tall when many dates are selected, improving usability on smaller screens.
+The manual editor is scrollable to prevent excessive page height when editing multiple dates.
 
 ---
 
-## 11. Room Menu / Drawer
+## 11. Room Drawer
 
-The room page includes a hamburger menu that opens a left-side drawer.
-
-The drawer contains:
+The navigation drawer includes:
 
 - Sample room switching
-- Add/Edit room shortcut
-- Dark mode setting
-
-The drawer closes using a small corner icon.
+- Room management shortcut
+- Theme toggle
 
 ---
 
 ## 12. Room Switching
 
-The drawer contains multiple sample rooms.
+Users can switch between sample rooms.
 
-Switching updates:
+Currently updates:
 
 - Room name
 - Room code
 
-This is prototype-only behavior and is not backed by a database.
+This is prototype-only functionality.
 
 ---
 
-## 13. Theme System
+## 13. Theme Support
 
 Supports:
 
 - Light mode
 - Dark mode
 
-The theme toggle is located inside the drawer.
-
-Theme selection is saved in `localStorage`, allowing it to persist after page reload.
+Theme preference is saved using `localStorage`.
 
 ---
 
 ## 14. Bills Section
 
-Bills are displayed in a horizontal scroll area.
+Bills are displayed horizontally.
 
-Each bill appears as its own card.
+Features include:
 
-There is always an **Add New Bill** card.
-
-If no bills exist yet, only the add card is displayed.
-
----
-
-## 15. Create New Bill
-
-Users can create a bill with:
-
-- Bill name
-- Total amount
-- Start date
-- End date
-
-Validation:
-
-- Bill name cannot be empty.
-- Amount must be greater than `0`.
-
-The creator is automatically added as a participant.
+- Bill cards
+- Add New Bill card
 
 ---
 
-## 16. Edit Existing Bill
+## 15. Create Bill
 
-Joined users can edit:
+Users provide:
 
 - Bill name
 - Amount
 - Start date
 - End date
 
-Non-participants cannot edit the bill.
+Validation:
+
+- Name required
+- Amount greater than zero
+
+Creator automatically joins the bill.
 
 ---
 
-## 17. Per-Bill Participation
+## 16. Edit Bill
 
-Bills are not required to include every room member.
+Participants can edit:
 
-Each bill maintains its own participant list.
+- Name
+- Amount
+- Billing dates
 
-Supports situations where:
+Non-participants cannot edit.
 
-- One person does not share a certain bill.
-- Only selected members participate.
+---
 
-Behavior:
+## 17. Bill Participation
 
-- Creator is automatically included.
-- Creator may leave later.
-- Non-members can join.
-- Members can leave.
-- Members can be added or removed in the breakdown section.
+Each bill has its own participant list.
+
+Supports:
+
+- Join
+- Leave
+- Add members
+- Remove members
+
+Different bills may include different members.
 
 ---
 
 ## 18. Your Share
 
-If the current user has joined:
+Participants see:
 
-- Shows **Your Share**
-- Displays computed amount
-- Shows a **Leave** action
+- Computed share
+- Leave button
 
-If the current user has not joined:
+Non-participants see:
 
-- Your Share is hidden.
-- Displays **Join to see your share**.
-- Shows a green **Join** button.
+- Join button
+- "Join to see your share"
 
 ---
 
-## 19. Everyone's Share Breakdown
+## 19. Everyone's Share
 
-Joined users can expand **Everyone's Share**.
+Displays:
 
-For every room member, it displays:
+- Member name
+- Participation status
+- Stay duration used
+- Computed share
 
-- Name
-- Whether included in the bill
-- Stayed days used for calculation
-- Computed share amount (if included)
-
-It also supports:
-
-- Add
-- Remove
-- Join
-- Leave
+Also supports participant management.
 
 ---
 
-## 20. Bill Share Calculation
+## 20. Bill Calculation
 
-Each bill performs its own calculation.
-
-The calculation depends on:
+Every bill computes shares independently using:
 
 - Bill amount
-- Bill date range
+- Billing period
 - Joined participants
 
-Current user stay duration comes from tracked entries.
+Current user calculations use actual stay sessions.
 
-Sample roommates currently use placeholder default stay values.
+Sample roommates currently use placeholder data.
 
 ---
 
 ## 21. Recent Logs
 
-The bottom section displays recent activity.
+Displays:
 
-It includes:
+- Active stay
+- Timer sessions
+- Manual edits
 
-- Active stay (if running)
-- Recent timer sessions
-- Recent manual corrections
+Each entry includes:
 
-Each log shows:
-
-- Source type
-- Date/time range
+- Source
+- Time range
 - Duration
 
 ---
 
-# What Is Still Missing
+# Target Production Architecture
 
-Planned future features include:
+The current repository validates the user experience before introducing backend infrastructure.
 
-- Spring Boot backend
-- MySQL database
+The long-term goal is to evolve FairySplit into a production-ready full-stack web application.
+
+## Recommended Technology Stack
+
+### Frontend
+
+- React
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- TanStack Query
+
+### Backend
+
+- NestJS
 - REST API
-- Persistent rooms, users, bills, and logs
-- Real multi-user synchronization
-- Real invite/join system
-- Actual authentication
-- Monthly recurring bill settings
-- Always-on exclusions (e.g., refrigerator logic)
-- Bill history saved per month
-- Role and permission rules
-- True per-user data across devices
+
+NestJS provides a scalable backend architecture while allowing both the frontend and backend to share the same language (TypeScript).
+
+### Database
+
+- PostgreSQL
+
+A relational database naturally fits FairySplit because it manages interconnected entities such as:
+
+- Users
+- Rooms
+- Members
+- Stay Logs
+- Bills
+- Bill Participants
+
+PostgreSQL also provides excellent support for timestamp, date-range, and aggregation queries.
+
+### ORM
+
+- Prisma
+
+Prisma simplifies database access through a type-safe ORM while keeping the data model clean and maintainable.
+
+### Authentication
+
+- Better Auth (or another authentication provider)
+- JWT authentication
+- Optional Google Sign-In
+
+### Real-Time Communication
+
+- WebSockets
+
+Real-time synchronization enables roommates to immediately see:
+
+- Time In / Out events
+- Bill updates
+- Participant changes
+- Room activity
+
+without refreshing the page.
+
+## Deployment
+
+### Frontend
+
+- Vercel
+
+### Backend
+
+- Railway
+- Fly.io
+- Render
+
+### Database
+
+- Neon PostgreSQL
+- Railway PostgreSQL
+
+This stack prioritizes developer productivity, maintainability, deployment simplicity, and future scalability.
 
 ---
 
-# Short Version
+# Development Roadmap
 
-Right now, **FairySplit** is a polished frontend prototype for a dorm bill-sharing app centered around one habit:
+## Phase 1 — Backend Foundation
 
-> **Open the app and tap In or Out quickly.**
+Build the backend application.
 
-The prototype already demonstrates:
+Objectives:
 
-- Room setup
-- Time logging
-- Manual correction
-- Per-bill participation
-- Transparent share computation
+- Create REST API
+- Connect PostgreSQL
+- Define application models
+- Implement CRUD operations
 
-The next major milestone is building the backend with persistence using Spring Boot, MySQL, and REST APIs.
+Core entities:
+
+- Users
+- Rooms
+- Room Members
+- Stay Logs
+- Bills
+- Bill Participants
+
+---
+
+## Phase 2 — User Authentication
+
+Implement:
+
+- User registration
+- Login
+- Secure authentication
+- Protected API routes
+
+---
+
+## Phase 3 — Persistent Storage
+
+Replace browser-only state with database persistence.
+
+Persist:
+
+- Users
+- Rooms
+- Members
+- Stay sessions
+- Bills
+- Bill participants
+- User preferences
+
+---
+
+## Phase 4 — Multi-User Collaboration
+
+Implement shared rooms.
+
+Features:
+
+- Invite codes
+- Join room
+- Shared bills
+- Shared stay logs
+
+---
+
+## Phase 5 — Real-Time Synchronization
+
+Enable live updates.
+
+Examples:
+
+- Member times in
+- Member times out
+- Bill edits
+- Participant changes
+- Room activity
+
+---
+
+## Phase 6 — Advanced Billing
+
+Potential additions:
+
+- Monthly recurring bills
+- Permanent bill exclusions
+- Utility categories
+- Payment tracking
+- Bill history
+- Monthly reports
+
+---
+
+## Phase 7 — Quality Improvements
+
+Improve overall product quality.
+
+Examples:
+
+- Push notifications
+- Better validation
+- Error handling
+- Accessibility
+- Responsive improvements
+- Unit testing
+- API testing
+- Performance optimization
+
+---
+
+# Long-Term Vision
+
+FairySplit aims to become a lightweight shared-living expense platform that removes the need for manually counting stay durations every billing cycle.
+
+Instead of asking roommates to remember how many days they stayed, the application continuously records stay sessions and automatically computes fair bill shares using transparent, time-based calculations.
+
+The long-term goal is to reduce bill sharing to one simple daily habit:
+
+> **Open the app, tap In when entering, and Out when leaving.**
